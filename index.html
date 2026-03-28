@@ -439,7 +439,7 @@
     <div class="section-header">
       <div class="section-title">รายจ่ายทั้งหมด</div>
       <div style="display:flex;align-items:center;gap:10px">
-        <button class="btn btn-ghost" id="exportBtn">Export</button>
+        <button class="btn btn-ghost" id="exportBtn" onclick="exportYearTransactions()">Export</button>
         <button class="btn btn-primary" id="addBtn" style="display:none" onclick="openAddModal()">Add</button>
       </div>
     </div>
@@ -862,6 +862,72 @@ function renderExpenses() {
   document.getElementById('expenseList').innerHTML=list.length
     ?list.map(e=>expenseCardHtml(e,true)).join('')
     :'<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">ไม่พบรายการ</div></div>';
+}
+
+function exportCsvCell(value) {
+  const text = String(value ?? '');
+  if (/[",\n]/.test(text)) return `"${text.replaceAll('"', '""')}"`;
+  return text;
+}
+function expenseTypeText(type) {
+  return type === 'recurring' ? 'ประจำ' : type === 'investment' ? 'ลงทุน' : 'ซ่อมบำรุง';
+}
+function expenseStatusText(status) {
+  return status === 'paid' ? 'จ่ายแล้ว' : 'รอดำเนินการ';
+}
+function exportYearTransactions() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const today = now.toISOString().slice(0, 10);
+  const ytdExpenses = [...expenses]
+    .filter(e => e?.date && e.date.slice(0, 4) === String(year) && e.date <= today)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (!ytdExpenses.length) {
+    alert('ยังไม่มีรายการ YTD สำหรับปีนี้');
+    return;
+  }
+
+  const headers = [
+    'วันที่',
+    'ชื่อรายจ่าย',
+    'ประเภท',
+    'สถานะ',
+    'จำนวนเงิน',
+    'รายละเอียด',
+    'หมายเหตุ',
+    'จำนวนไฟล์แนบ',
+    'ลิงก์ไฟล์แนบ',
+  ];
+
+  const rows = ytdExpenses.map(e => [
+    e.date || '',
+    e.title || '',
+    expenseTypeText(e.type),
+    expenseStatusText(e.status),
+    Number(e.amount || 0).toFixed(2),
+    e.detail || '',
+    e.note || '',
+    Array.isArray(e.slips) ? e.slips.length : 0,
+    (Array.isArray(e.slips) ? e.slips : [])
+      .map(att => normalizeAttachment(att)?.url || '')
+      .filter(Boolean)
+      .join(' | '),
+  ]);
+
+  const csv = [headers, ...rows]
+    .map(row => row.map(exportCsvCell).join(','))
+    .join('\n');
+
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `expense-ytd-${year}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function attachmentKind(type = '', name = '') {
