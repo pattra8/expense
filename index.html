@@ -934,12 +934,13 @@ function attachmentsHtml(items, detail = false) {
   const attachments = (items || []).map(normalizeAttachment).filter(Boolean);
   if (!attachments.length) return '';
   const visible = detail ? attachments : attachments.slice(0, 3);
-  const tiles = visible.map(att => {
+  const encodedAll = JSON.stringify(attachments).replace(/"/g,'&quot;');
+  const tiles = visible.map((att, index) => {
     const source = attachmentSource(att);
     if (att.kind === 'image' && source) {
-      return `<img class="slip-thumb" src="${source}" ${detail ? 'style="width:76px;height:76px"' : ''} onclick="event.stopPropagation();openAttachment(${JSON.stringify([att]).replace(/"/g,'&quot;')},0)">`;
+      return `<img class="slip-thumb" src="${source}" ${detail ? 'style="width:76px;height:76px"' : ''} onclick="event.stopPropagation();openAttachment(${encodedAll},${index})">`;
     }
-    return `<button class="file-thumb" ${detail ? 'style="width:76px;height:76px"' : ''} onclick="event.stopPropagation();openAttachment(${JSON.stringify([att]).replace(/"/g,'&quot;')},0)"><strong>${attachmentBadge(att.kind)}</strong><span>${escapeHtml(att.name)}</span></button>`;
+    return `<button class="file-thumb" ${detail ? 'style="width:76px;height:76px"' : ''} onclick="event.stopPropagation();openAttachment(${encodedAll},${index})"><strong>${attachmentBadge(att.kind)}</strong><span>${escapeHtml(att.name)}</span></button>`;
   }).join('');
   const overflow = !detail && attachments.length > 3 ? `<div class="slip-count">+${attachments.length-3}</div>` : '';
   return `<div class="expense-slips">${tiles}${overflow}</div>`;
