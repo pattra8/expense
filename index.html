@@ -867,6 +867,17 @@ function normalizeAttachment(item) {
     kind: item.kind || attachmentKind(item.type, item.name),
   };
 }
+function compactAttachment(item) {
+  const att = normalizeAttachment(item);
+  if (!att) return null;
+  return {
+    url: att.url || '',
+    name: att.name || 'ไฟล์แนบ',
+    type: att.type || 'application/octet-stream',
+    size: Number(att.size || 0),
+    kind: att.kind || attachmentKind(att.type, att.name),
+  };
+}
 function attachmentSource(att) {
   const normalized = normalizeAttachment(att);
   return normalized?.previewUrl || normalized?.url || '';
@@ -987,9 +998,9 @@ async function uploadSlipAsset(expenseId, slip, index) {
 async function persistSlipAssets(expenseId, slips) {
   const uploaded = [];
   for (let i = 0; i < slips.length; i += 1) {
-    uploaded.push(await uploadSlipAsset(expenseId, slips[i], i));
+    uploaded.push(compactAttachment(await uploadSlipAsset(expenseId, slips[i], i)));
   }
-  return uploaded;
+  return uploaded.filter(Boolean);
 }
 async function deleteSlipAssets(slips) {
   if (!storage || !Array.isArray(slips)) return;
