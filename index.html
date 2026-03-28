@@ -551,6 +551,8 @@ const FIREBASE_CONFIG = {
 
 const EXPENSES_STORAGE_KEY = 'pattra8_expenses';
 const CAPMAX_STORAGE_KEY = 'pattra8_capMax';
+const ADMIN_SESSION_KEY = 'pattra8_admin_session';
+const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const FIRESTORE_SETTINGS_DOC = 'global';
 const FIREBASE_READY = Object.values(FIREBASE_CONFIG).every(v => v && !String(v).startsWith('REPLACE_WITH_'));
 
@@ -575,6 +577,7 @@ let expenses = JSON.parse(localStorage.getItem(EXPENSES_STORAGE_KEY) || '[]');
 let editingId = null, currentSlips = [], lightboxSlips = [], lightboxIdx = 0, currentType = 'recurring';
 
 function init() {
+  restoreAdminSession();
   populateYearFilter(); populateMonthFilter(); populateDashMonthFilter();
   renderDashboard(); renderExpenses();
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
@@ -630,6 +633,36 @@ function populateDashMonthFilter() {
   document.getElementById('dashMonthFilter').innerHTML = opts.join('');
 }
 
+function setAdminState(on) {
+  isAdmin = on;
+  document.getElementById('adminToggleBtn').textContent = on ? 'ออกจากระบบ' : 'เข้าสู่ระบบ Admin';
+  document.getElementById('adminToggleBtn').classList.toggle('active', on);
+  document.getElementById('badgeAdmin').style.display = on ? 'inline' : 'none';
+  document.getElementById('addBtn').style.display = on ? 'inline-flex' : 'none';
+  setAdminUI(on);
+}
+function rememberAdminSession() {
+  localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now() }));
+}
+function clearAdminSession() {
+  localStorage.removeItem(ADMIN_SESSION_KEY);
+}
+function restoreAdminSession() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY) || 'null');
+    const active = saved && Date.now() - Number(saved.ts || 0) < ADMIN_SESSION_TTL_MS;
+    if (active) {
+      setAdminState(true);
+      rememberAdminSession();
+      return;
+    }
+  } catch (err) {
+    console.warn('Failed to restore admin session:', err);
+  }
+  clearAdminSession();
+  setAdminState(false);
+}
+
 function toggleAdminPrompt() {
   if (isAdmin) { logout(); return; }
   document.getElementById('loginModal').classList.add('open');
@@ -639,13 +672,9 @@ function toggleAdminPrompt() {
 }
 function doLogin() {
   if (document.getElementById('loginInput').value === ADMIN_PWD) {
-    isAdmin = true;
+    rememberAdminSession();
+    setAdminState(true);
     document.getElementById('loginModal').classList.remove('open');
-    document.getElementById('adminToggleBtn').textContent = 'ออกจากระบบ';
-    document.getElementById('adminToggleBtn').classList.add('active');
-    document.getElementById('badgeAdmin').style.display = 'inline';
-    document.getElementById('addBtn').style.display = 'inline-flex';
-    setAdminUI(true);
     renderDashboard(); renderExpenses();
   } else {
     document.getElementById('loginError').style.display = 'block';
@@ -654,12 +683,8 @@ function doLogin() {
   }
 }
 function logout() {
-  isAdmin = false;
-  document.getElementById('adminToggleBtn').textContent = 'เข้าสู่ระบบ Admin';
-  document.getElementById('adminToggleBtn').classList.remove('active');
-  document.getElementById('badgeAdmin').style.display = 'none';
-  document.getElementById('addBtn').style.display = 'none';
-  setAdminUI(false);
+  clearAdminSession();
+  setAdminState(false);
   renderDashboard(); renderExpenses();
 }
 function closeLogin() { document.getElementById('loginModal').classList.remove('open'); }
