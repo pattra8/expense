@@ -281,6 +281,13 @@
   .upload-preview { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
   .preview-item { position:relative; width:68px; height:68px; }
   .preview-img  { width:100%; height:100%; border-radius:8px; object-fit:cover; border:1.5px solid var(--border); }
+  .preview-file,.file-thumb {
+    width:100%; height:100%; border-radius:8px; border:1.5px solid var(--border);
+    background:var(--surface2); color:var(--text-mid);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:6px; font-size:10px; line-height:1.2;
+  }
+  .preview-file strong,.file-thumb strong { font-size:11px; color:var(--text-hi); }
   .preview-remove { position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--rose); color:#fff; border:none; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:700; }
 
   /* ── DETAIL ── */
@@ -486,9 +493,9 @@
            onclick="document.getElementById('fileInput').click()"
            ondragover="handleDragOver(event)" ondrop="handleDrop(event)"
            ondragleave="this.classList.remove('drag')">
-        <input type="file" id="fileInput" multiple accept="image/*" onchange="handleFiles(event)">
+        <input type="file" id="fileInput" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv" onchange="handleFiles(event)">
         <div class="upload-icon">📎</div>
-        <div class="upload-text">คลิกหรือลากไฟล์มาวางที่นี่<br><small>รองรับหลายไฟล์พร้อมกัน</small></div>
+        <div class="upload-text">คลิกหรือลากไฟล์มาวางที่นี่<br><small>รองรับรูป, PDF, Word, Excel, CSV หลายไฟล์พร้อมกัน</small></div>
       </div>
       <div class="upload-preview" id="uploadPreview"></div>
     </div>
@@ -538,7 +545,8 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getStorage, ref, uploadBytes, uploadString, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyAj8pSPvM22aA7ngOREZzECuvmgr3CM5OI',
@@ -557,12 +565,14 @@ const FIRESTORE_SETTINGS_DOC = 'global';
 const FIREBASE_READY = Object.values(FIREBASE_CONFIG).every(v => v && !String(v).startsWith('REPLACE_WITH_'));
 
 let db = null;
+let storage = null;
 let usingFirestore = false;
 let sharedCapMax = parseFloat(localStorage.getItem(CAPMAX_STORAGE_KEY) || '0') || 0;
 
 if (FIREBASE_READY) {
   const fbApp = initializeApp(FIREBASE_CONFIG);
   db = getFirestore(fbApp);
+  storage = getStorage(fbApp);
   usingFirestore = true;
 } else {
   console.warn('Firebase config is not set yet. Falling back to localStorage until config is added.');
@@ -819,9 +829,79 @@ function renderExpenses() {
     :'<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">ไม่พบรายการ</div></div>';
 }
 
+function attachmentKind(type = '', name = '') {
+  const lowerType = String(type).toLowerCase();
+  const lowerName = String(name).toLowerCase();
+  if (lowerType.startsWith('image/')) return 'image';
+  if (lowerType === 'application/pdf' || lowerName.endsWith('.pdf')) return 'pdf';
+  if (lowerType.includes('word') || lowerName.endsWith('.doc') || lowerName.endsWith('.docx')) return 'doc';
+  if (lowerType.includes('excel') || lowerType.includes('spreadsheet') || lowerName.endsWith('.xls') || lowerName.endsWith('.xlsx') || lowerName.endsWith('.csv')) return 'sheet';
+  return 'file';
+}
+function normalizeAttachment(item) {
+  if (!item) return null;
+  if (typeof item === 'string') {
+    const kind = item.startsWith('data:image/') || item.startsWith('http') ? 'image' : 'file';
+    return {
+      url: item.startsWith('data:') ? '' : item,
+      previewUrl: item,
+      name: kind === 'image' ? 'รูปภาพ' : 'ไฟล์แนบ',
+      type: kind === 'image' ? 'image/*' : 'application/octet-stream',
+      size: 0,
+      kind,
+    };
+  }
+  if (item.file) {
+    return {
+      ...item,
+      kind: item.kind || attachmentKind(item.type, item.name),
+      previewUrl: item.previewUrl || (item.type && item.type.startsWith('image/') ? URL.createObjectURL(item.file) : ''),
+    };
+  }
+  return {
+    url: item.url || '',
+    previewUrl: item.previewUrl || item.url || '',
+    name: item.name || 'ไฟล์แนบ',
+    type: item.type || 'application/octet-stream',
+    size: item.size || 0,
+    kind: item.kind || attachmentKind(item.type, item.name),
+  };
+}
+function attachmentSource(att) {
+  const normalized = normalizeAttachment(att);
+  return normalized?.previewUrl || normalized?.url || '';
+}
+function attachmentBadge(kind) {
+  if (kind === 'pdf') return 'PDF';
+  if (kind === 'doc') return 'DOC';
+  if (kind === 'sheet') return 'XLS';
+  return 'FILE';
+}
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+function attachmentsHtml(items, detail = false) {
+  const attachments = (items || []).map(normalizeAttachment).filter(Boolean);
+  if (!attachments.length) return '';
+  const visible = detail ? attachments : attachments.slice(0, 3);
+  const tiles = visible.map(att => {
+    const source = attachmentSource(att);
+    if (att.kind === 'image' && source) {
+      return `<img class="slip-thumb" src="${source}" ${detail ? 'style="width:76px;height:76px"' : ''} onclick="event.stopPropagation();openAttachment(${JSON.stringify([att]).replace(/"/g,'&quot;')},0)">`;
+    }
+    return `<button class="file-thumb" ${detail ? 'style="width:76px;height:76px"' : ''} onclick="event.stopPropagation();openAttachment(${JSON.stringify([att]).replace(/"/g,'&quot;')},0)"><strong>${attachmentBadge(att.kind)}</strong><span>${escapeHtml(att.name)}</span></button>`;
+  }).join('');
+  const overflow = !detail && attachments.length > 3 ? `<div class="slip-count">+${attachments.length-3}</div>` : '';
+  return `<div class="expense-slips">${tiles}${overflow}</div>`;
+}
+
 function expenseCardHtml(e,showAdmin) {
-  const slipsHtml = e.slips&&e.slips.length
-    ?`<div class="expense-slips">${e.slips.slice(0,3).map((s,i)=>`<img class="slip-thumb" src="${s}" onclick="event.stopPropagation();openLightbox(${JSON.stringify(e.slips).replace(/"/g,'&quot;')},${i})">`).join('')}${e.slips.length>3?`<div class="slip-count">+${e.slips.length-3}</div>`:''}</div>`:'';
+  const slipsHtml = attachmentsHtml(e.slips,false);
   const adminHtml = isAdmin
     ?`<div class="expense-actions" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm" onclick="openEditModal('${e.id}')">✏️ แก้ไข</button><button class="btn btn-danger btn-sm" onclick="deleteExpense('${e.id}')">ลบ</button></div>`:'';
   const sd = e.status==='paid'?'<span class="status-dot dot-paid"></span>จ่ายแล้ว':'<span class="status-dot dot-pending"></span>รอดำเนินการ';
@@ -860,22 +940,90 @@ function setType(t) {
     document.getElementById('typeBtn'+tp.charAt(0).toUpperCase()+tp.slice(1)).className='type-btn'+(tp===t?' active-'+tp:'');
   });
 }
+function makeExpenseId() {
+  return (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2,10)}`;
+}
+function isStorageUrl(value) {
+  return typeof value === 'string' && (value.startsWith('https://') || value.startsWith('http://'));
+}
+function isDataUrl(value) {
+  return typeof value === 'string' && value.startsWith('data:');
+}
+function sanitizeFileName(name = 'attachment') {
+  return String(name).replace(/[^a-zA-Z0-9._-]/g, '-');
+}
+function extensionFromDataUrl(dataUrl) {
+  if (!isDataUrl(dataUrl)) return 'jpg';
+  const match = dataUrl.match(/^data:image\/([a-zA-Z0-9.+-]+);base64,/);
+  const ext = (match && match[1] ? match[1] : 'jpeg').toLowerCase();
+  return ext === 'jpeg' ? 'jpg' : ext;
+}
+async function uploadSlipAsset(expenseId, slip, index) {
+  const normalized = normalizeAttachment(slip);
+  if (!usingFirestore || !storage || !normalized) return normalized;
+  if (normalized.url && !normalized.file && !isDataUrl(normalized.previewUrl || '')) return normalized;
+  if (normalized.file) {
+    const fileRef = ref(storage, `expense-slips/${expenseId}/${Date.now()}-${index}-${sanitizeFileName(normalized.name)}`);
+    await uploadBytes(fileRef, normalized.file, { contentType: normalized.type || undefined });
+    return {
+      url: await getDownloadURL(fileRef),
+      name: normalized.name,
+      type: normalized.type,
+      size: normalized.size,
+      kind: normalized.kind,
+    };
+  }
+  const ext = extensionFromDataUrl(normalized.previewUrl || '');
+  const fileRef = ref(storage, `expense-slips/${expenseId}/${Date.now()}-${index}.${ext}`);
+  await uploadString(fileRef, normalized.previewUrl, 'data_url');
+  return {
+    url: await getDownloadURL(fileRef),
+    name: normalized.name || `image-${index}.${ext}`,
+    type: normalized.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+    size: normalized.size || 0,
+    kind: 'image',
+  };
+}
+async function persistSlipAssets(expenseId, slips) {
+  const uploaded = [];
+  for (let i = 0; i < slips.length; i += 1) {
+    uploaded.push(await uploadSlipAsset(expenseId, slips[i], i));
+  }
+  return uploaded;
+}
+async function deleteSlipAssets(slips) {
+  if (!storage || !Array.isArray(slips)) return;
+  const tasks = slips
+    .map(normalizeAttachment)
+    .filter(att => att && isStorageUrl(att.url))
+    .map(async att => {
+      try {
+        await deleteObject(ref(storage, att.url));
+      } catch (err) {
+        console.warn('Failed to delete slip asset:', err);
+      }
+    });
+  await Promise.all(tasks);
+}
 async function saveExpense() {
   const title=document.getElementById('fTitle').value.trim(), amount=document.getElementById('fAmount').value, date=document.getElementById('fDate').value;
   if(!title||!amount||!date){alert('กรุณากรอก: ชื่อรายจ่าย, จำนวนเงิน, วันที่');return;}
-  const entry={title,type:currentType,amount:parseFloat(amount),date,
-    detail:document.getElementById('fDetail').value.trim(),note:document.getElementById('fNote').value.trim(),
-    status:document.getElementById('fStatus').value,
-    slips:[...currentSlips]};
+  const expenseId = editingId || makeExpenseId();
   try {
+    const slips = usingFirestore ? await persistSlipAssets(expenseId, currentSlips) : [...currentSlips];
+    const entry={title,type:currentType,amount:parseFloat(amount),date,
+      detail:document.getElementById('fDetail').value.trim(),note:document.getElementById('fNote').value.trim(),
+      status:document.getElementById('fStatus').value,
+      slips};
     if (usingFirestore) {
-      if (editingId) {
-        await updateDoc(doc(db,'expenses',editingId), { ...entry, updatedAt: serverTimestamp() });
-      } else {
-        await addDoc(collection(db,'expenses'), { ...entry, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-      }
+      const existing = editingId ? expenses.find(x=>x.id===editingId) : null;
+      await setDoc(doc(db,'expenses',expenseId), {
+        ...entry,
+        createdAt: existing?.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
     } else {
-      const localEntry = { id: editingId || Date.now().toString(), ...entry };
+      const localEntry = { id: expenseId, ...entry };
       if(editingId){expenses[expenses.findIndex(x=>x.id===editingId)]=localEntry;}else{expenses.unshift(localEntry);}
       save();
       refreshUI();
@@ -890,6 +1038,8 @@ async function deleteExpense(id) {
   if(!confirm('ต้องการลบรายการนี้?'))return;
   try {
     if (usingFirestore) {
+      const existing = expenses.find(x=>x.id===id);
+      await deleteSlipAssets(existing?.slips || []);
       await deleteDoc(doc(db,'expenses',id));
     } else {
       expenses=expenses.filter(x=>x.id!==id);
@@ -905,14 +1055,34 @@ async function deleteExpense(id) {
 
 function handleFiles(e){processFiles(Array.from(e.target.files));e.target.value='';}
 function handleDragOver(e){e.preventDefault();document.getElementById('uploadZone').classList.add('drag');}
-function handleDrop(e){e.preventDefault();document.getElementById('uploadZone').classList.remove('drag');processFiles(Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/')));}
-function processFiles(files){files.forEach(f=>{const r=new FileReader();r.onload=ev=>{currentSlips.push(ev.target.result);renderPreview();};r.readAsDataURL(f);});}
-function renderPreview(){document.getElementById('uploadPreview').innerHTML=currentSlips.map((s,i)=>`<div class="preview-item"><img class="preview-img" src="${s}"><button class="preview-remove" onclick="removeSlip(${i})">✕</button></div>`).join('');}
+function handleDrop(e){e.preventDefault();document.getElementById('uploadZone').classList.remove('drag');processFiles(Array.from(e.dataTransfer.files));}
+function processFiles(files){
+  files.forEach(file=>{
+    currentSlips.push(normalizeAttachment({
+      file,
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      size: file.size || 0,
+      kind: attachmentKind(file.type, file.name),
+    }));
+  });
+  renderPreview();
+}
+function renderPreview(){
+  document.getElementById('uploadPreview').innerHTML=currentSlips.map((item,i)=>{
+    const att = normalizeAttachment(item);
+    if (!att) return '';
+    const body = att.kind === 'image' && attachmentSource(att)
+      ? `<img class="preview-img" src="${attachmentSource(att)}">`
+      : `<div class="preview-file"><strong>${attachmentBadge(att.kind)}</strong><span>${escapeHtml(att.name)}</span></div>`;
+    return `<div class="preview-item">${body}<button class="preview-remove" onclick="removeSlip(${i})">✕</button></div>`;
+  }).join('');
+}
 function removeSlip(i){currentSlips.splice(i,1);renderPreview();}
 
 function openDetail(id) {
   const e=expenses.find(x=>x.id===id); if(!e)return;
-  const slipsHtml=e.slips&&e.slips.length?`<div class="detail-section"><div class="detail-label">สลิป</div><div class="expense-slips">${e.slips.map((s,i)=>`<img class="slip-thumb" src="${s}" style="width:76px;height:76px" onclick="openLightbox(${JSON.stringify(e.slips).replace(/"/g,'&quot;')},${i})">`).join('')}</div></div>`:'';
+  const slipsHtml=e.slips&&e.slips.length?`<div class="detail-section"><div class="detail-label">ไฟล์แนบ</div>${attachmentsHtml(e.slips,true)}</div>`:'';
   document.getElementById('detailContent').innerHTML=`
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
       <span class="expense-type-badge ${typeBadgeClass(e.type)}">${typeLabel(e.type)}</span>
@@ -932,7 +1102,22 @@ function openDetail(id) {
   document.getElementById('detailModal').classList.add('open');
 }
 
-function openLightbox(slips,idx){lightboxSlips=slips;lightboxIdx=idx;document.getElementById('lightboxImg').src=slips[idx];document.getElementById('lightbox').classList.add('open');}
+function openAttachment(items,idx){
+  const attachments = (items || []).map(normalizeAttachment).filter(Boolean);
+  const selected = attachments[idx];
+  if (!selected) return;
+  if (selected.kind !== 'image') {
+    window.open(selected.url || selected.previewUrl, '_blank', 'noopener');
+    return;
+  }
+  const imageSources = attachments.filter(att => att.kind === 'image').map(attachmentSource);
+  const selectedSource = attachmentSource(selected);
+  lightboxSlips=imageSources;
+  lightboxIdx=Math.max(imageSources.findIndex(src => src === selectedSource),0);
+  document.getElementById('lightboxImg').src=lightboxSlips[lightboxIdx];
+  document.getElementById('lightbox').classList.add('open');
+}
+function openLightbox(slips,idx){openAttachment((slips || []).map(item => ({ url:item, previewUrl:item, kind:'image', type:'image/*', name:'รูปภาพ' })),idx);}
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
 function lightboxPrev(){lightboxIdx=(lightboxIdx-1+lightboxSlips.length)%lightboxSlips.length;document.getElementById('lightboxImg').src=lightboxSlips[lightboxIdx];}
 function lightboxNext(){lightboxIdx=(lightboxIdx+1)%lightboxSlips.length;document.getElementById('lightboxImg').src=lightboxSlips[lightboxIdx];}
@@ -1001,6 +1186,7 @@ Object.assign(window, {
   lightboxNext,
   lightboxPrev,
   openAddModal,
+  openAttachment,
   openCapModal,
   openDetail,
   openEditModal,
