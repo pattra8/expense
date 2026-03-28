@@ -425,7 +425,10 @@
 
     <div class="section-header">
       <div class="section-title" id="txnSectionTitle">รายจ่ายเดือน —</div>
-      <select class="filter-select" id="dashMonthFilter" onchange="renderMonthTxn()"></select>
+      <div style="display:flex;align-items:center;gap:10px">
+        <select class="filter-select" id="dashMonthFilter" onchange="renderMonthTxn()"></select>
+        <button class="btn btn-primary" id="addBtnDashboard" style="display:none" onclick="openAddModal()">Add</button>
+      </div>
     </div>
     <div class="expense-list" id="recentList"></div>
   </div>
@@ -434,7 +437,10 @@
   <div id="pageExpenses" style="display:none">
     <div class="section-header">
       <div class="section-title">รายจ่ายทั้งหมด</div>
-      <button class="btn btn-primary" id="addBtn" style="display:none" onclick="openAddModal()">+ เพิ่มรายจ่าย</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn btn-ghost" id="exportBtn">Export</button>
+        <button class="btn btn-primary" id="addBtn" style="display:none" onclick="openAddModal()">Add</button>
+      </div>
     </div>
     <div class="filters">
       <select class="filter-select" id="filterMonth" onchange="renderExpenses()"></select>
@@ -663,6 +669,7 @@ function setAdminState(on, persist = true) {
   document.getElementById('adminToggleBtn').classList.toggle('active', on);
   document.getElementById('badgeAdmin').style.display = on ? 'inline' : 'none';
   document.getElementById('addBtn').style.display = on ? 'inline-flex' : 'none';
+  document.getElementById('addBtnDashboard').style.display = on ? 'inline-flex' : 'none';
   setAdminUI(on);
   if (!persist) return;
   if (on) {
