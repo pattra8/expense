@@ -536,21 +536,74 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyAj8pSPvM22aA7ngOREZzECuvmgr3CM5OI',
+  authDomain: 'pattra8-expense.firebaseapp.com',
+  projectId: 'pattra8-expense',
+  storageBucket: 'pattra8-expense.firebasestorage.app',
+  messagingSenderId: '623248845031',
+  appId: '1:623248845031:web:c27387338325615d89da42',
+};
+
+const EXPENSES_STORAGE_KEY = 'pattra8_expenses';
+const CAPMAX_STORAGE_KEY = 'pattra8_capMax';
+const FIRESTORE_SETTINGS_DOC = 'global';
+const FIREBASE_READY = Object.values(FIREBASE_CONFIG).every(v => v && !String(v).startsWith('REPLACE_WITH_'));
+
+let db = null;
+let usingFirestore = false;
+let sharedCapMax = parseFloat(localStorage.getItem(CAPMAX_STORAGE_KEY) || '0') || 0;
+
+if (FIREBASE_READY) {
+  const fbApp = initializeApp(FIREBASE_CONFIG);
+  db = getFirestore(fbApp);
+  usingFirestore = true;
+} else {
+  console.warn('Firebase config is not set yet. Falling back to localStorage until config is added.');
+}
+
 const ADMIN_PWD = 'nitipattra8';
 const MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 const MONTH_SH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
 let isAdmin = false;
-let expenses = JSON.parse(localStorage.getItem('pattra8_expenses') || '[]');
+let expenses = JSON.parse(localStorage.getItem(EXPENSES_STORAGE_KEY) || '[]');
 let editingId = null, currentSlips = [], lightboxSlips = [], lightboxIdx = 0, currentType = 'recurring';
 
 function init() {
   populateYearFilter(); populateMonthFilter(); populateDashMonthFilter();
   renderDashboard(); renderExpenses();
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+  if (usingFirestore) bindFirestore();
 }
-function save() { localStorage.setItem('pattra8_expenses', JSON.stringify(expenses)); }
+function refreshUI() {
+  populateYearFilter();
+  populateDashMonthFilter();
+  renderDashboard();
+  renderExpenses();
+}
+function saveLocal() { localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expenses)); }
+function save() {
+  if (!usingFirestore) saveLocal();
+}
+function bindFirestore() {
+  const expensesQuery = query(collection(db,'expenses'), orderBy('date','desc'));
+  onSnapshot(expensesQuery, snap => {
+    expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    saveLocal();
+    refreshUI();
+  }, err => console.error('Firestore expenses listener failed:', err));
+
+  onSnapshot(doc(db,'app_settings',FIRESTORE_SETTINGS_DOC), snap => {
+    sharedCapMax = snap.exists() ? Number(snap.data().capMax || 0) : 0;
+    localStorage.setItem(CAPMAX_STORAGE_KEY, String(sharedCapMax || 0));
+    renderDashboard();
+  }, err => console.error('Firestore settings listener failed:', err));
+}
 
 function populateYearFilter() {
   const years = [...new Set(expenses.map(e=>new Date(e.date).getFullYear()))];
@@ -782,21 +835,47 @@ function setType(t) {
     document.getElementById('typeBtn'+tp.charAt(0).toUpperCase()+tp.slice(1)).className='type-btn'+(tp===t?' active-'+tp:'');
   });
 }
-function saveExpense() {
+async function saveExpense() {
   const title=document.getElementById('fTitle').value.trim(), amount=document.getElementById('fAmount').value, date=document.getElementById('fDate').value;
   if(!title||!amount||!date){alert('กรุณากรอก: ชื่อรายจ่าย, จำนวนเงิน, วันที่');return;}
-  const entry={id:editingId||Date.now().toString(),title,type:currentType,amount:parseFloat(amount),date,
+  const entry={title,type:currentType,amount:parseFloat(amount),date,
     detail:document.getElementById('fDetail').value.trim(),note:document.getElementById('fNote').value.trim(),
     status:document.getElementById('fStatus').value,
     slips:[...currentSlips]};
-  if(editingId){expenses[expenses.findIndex(x=>x.id===editingId)]=entry;}else{expenses.unshift(entry);}
-  save(); populateYearFilter(); populateDashMonthFilter();
-  closeModal('expenseModal'); renderDashboard(); renderExpenses();
+  try {
+    if (usingFirestore) {
+      if (editingId) {
+        await updateDoc(doc(db,'expenses',editingId), { ...entry, updatedAt: serverTimestamp() });
+      } else {
+        await addDoc(collection(db,'expenses'), { ...entry, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      }
+    } else {
+      const localEntry = { id: editingId || Date.now().toString(), ...entry };
+      if(editingId){expenses[expenses.findIndex(x=>x.id===editingId)]=localEntry;}else{expenses.unshift(localEntry);}
+      save();
+      refreshUI();
+    }
+    closeModal('expenseModal');
+  } catch (err) {
+    console.error(err);
+    alert('บันทึกรายการไม่สำเร็จ');
+  }
 }
-function deleteExpense(id) {
+async function deleteExpense(id) {
   if(!confirm('ต้องการลบรายการนี้?'))return;
-  expenses=expenses.filter(x=>x.id!==id);
-  save(); renderDashboard(); renderExpenses(); closeModal('detailModal');
+  try {
+    if (usingFirestore) {
+      await deleteDoc(doc(db,'expenses',id));
+    } else {
+      expenses=expenses.filter(x=>x.id!==id);
+      save();
+      refreshUI();
+    }
+    closeModal('detailModal');
+  } catch (err) {
+    console.error(err);
+    alert('ลบรายการไม่สำเร็จ');
+  }
 }
 
 function handleFiles(e){processFiles(Array.from(e.target.files));e.target.value='';}
@@ -836,13 +915,25 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id);});});
 
 // ── GLOBAL CAP MAX ──
-function getGlobalCapMax() { return parseFloat(localStorage.getItem('pattra8_capMax')||'0')||0; }
-function saveCapMax() {
+function getGlobalCapMax() {
+  return usingFirestore ? sharedCapMax : (parseFloat(localStorage.getItem(CAPMAX_STORAGE_KEY)||'0')||0);
+}
+async function saveCapMax() {
   const val = parseFloat(document.getElementById('fCapMaxGlobal').value||'0');
   if (!val||val<=0) { alert('กรุณากรอกวงเงินที่ถูกต้อง'); return; }
-  localStorage.setItem('pattra8_capMax', val.toString());
-  closeModal('capModal');
-  renderDashboard();
+  try {
+    if (usingFirestore) {
+      await setDoc(doc(db,'app_settings',FIRESTORE_SETTINGS_DOC), { capMax: val, updatedAt: serverTimestamp() }, { merge: true });
+      sharedCapMax = val;
+    } else {
+      localStorage.setItem(CAPMAX_STORAGE_KEY, val.toString());
+    }
+    closeModal('capModal');
+    renderDashboard();
+  } catch (err) {
+    console.error(err);
+    alert('บันทึกวงเงินไม่สำเร็จ');
+  }
 }
 function openCapModal() {
   const cur = getGlobalCapMax();
@@ -858,6 +949,7 @@ function setAdminUI(on) {
 
 
 function seedIfEmpty() {
+  if (usingFirestore) return;
   if(expenses.length>0)return;
   const y=new Date().getFullYear();
   expenses=[
@@ -872,6 +964,32 @@ function seedIfEmpty() {
   ];
   save();
 }
+Object.assign(window, {
+  closeLightbox,
+  closeLogin,
+  closeModal,
+  deleteExpense,
+  doLogin,
+  handleDragOver,
+  handleDrop,
+  handleFiles,
+  lightboxNext,
+  lightboxPrev,
+  openAddModal,
+  openCapModal,
+  openDetail,
+  openEditModal,
+  openLightbox,
+  removeSlip,
+  renderDashboard,
+  renderExpenses,
+  renderMonthTxn,
+  saveCapMax,
+  saveExpense,
+  setType,
+  showPage,
+  toggleAdminPrompt,
+});
 seedIfEmpty(); init();
 </script>
 </body>

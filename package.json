@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "firebase:rules": "firebase deploy --only firestore:rules",
+    "firebase:login": "firebase login"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.12.0"
+  }
+}

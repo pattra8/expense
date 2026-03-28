@@ -20,3 +20,7 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+# Node / local tooling
+node_modules/
+.firebase/
