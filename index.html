@@ -296,13 +296,24 @@
   .detail-value { font-size:14px; color:var(--text-hi); }
 
   /* ── LIGHTBOX ── */
-  .lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:300; align-items:center; justify-content:center; flex-direction:column; gap:16px; }
+  .lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,.94); z-index:300; align-items:center; justify-content:center; flex-direction:column; gap:16px; padding:16px; }
   .lightbox.open { display:flex; }
-  .lightbox img { max-width:90vw; max-height:80vh; border-radius:10px; object-fit:contain; }
+  .lightbox img { max-width:min(96vw, 1800px); max-height:calc(100vh - 120px); border-radius:10px; object-fit:contain; box-shadow:0 12px 48px rgba(0,0,0,.45); }
   .lightbox-close { position:absolute; top:20px; right:24px; color:#fff; font-size:26px; cursor:pointer; background:none; border:none; }
   .lightbox-nav { display:flex; gap:12px; }
   .lightbox-nav button { background:rgba(255,255,255,.15); border:none; color:#fff; padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; }
   .lightbox-nav button:hover { background:rgba(255,255,255,.25); }
+  .lightbox-toolbar { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .lightbox-toolbar button {
+    background:rgba(255,255,255,.15); border:none; color:#fff; padding:10px 16px;
+    border-radius:999px; cursor:pointer; font-size:13px; font-weight:600;
+  }
+  .lightbox-toolbar button:hover { background:rgba(255,255,255,.25); }
+  @media(max-width:720px) {
+    .lightbox { padding:8px; gap:10px; }
+    .lightbox img { max-width:100vw; max-height:calc(100vh - 96px); border-radius:0; }
+    .lightbox-close { top:12px; right:14px; }
+  }
 
   /* ── LOGIN ── */
   .login-modal { display:none; position:fixed; inset:0; background:rgba(15,22,35,.6); backdrop-filter:blur(8px); z-index:400; align-items:center; justify-content:center; }
@@ -537,6 +548,9 @@
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()">✕</button>
   <img id="lightboxImg" src="" alt="slip">
+  <div class="lightbox-toolbar" onclick="event.stopPropagation()">
+    <button onclick="openCurrentLightboxImage()">เปิดรูปในแท็บใหม่</button>
+  </div>
   <div class="lightbox-nav" onclick="event.stopPropagation()">
     <button onclick="lightboxPrev()">← ก่อนหน้า</button>
     <button onclick="lightboxNext()">ถัดไป →</button>
@@ -1144,6 +1158,11 @@ function openLightbox(slips,idx){openAttachment((slips || []).map(item => ({ url
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
 function lightboxPrev(){lightboxIdx=(lightboxIdx-1+lightboxSlips.length)%lightboxSlips.length;document.getElementById('lightboxImg').src=lightboxSlips[lightboxIdx];}
 function lightboxNext(){lightboxIdx=(lightboxIdx+1)%lightboxSlips.length;document.getElementById('lightboxImg').src=lightboxSlips[lightboxIdx];}
+function openCurrentLightboxImage(){
+  const src = lightboxSlips[lightboxIdx];
+  if (!src) return;
+  window.open(src, '_blank', 'noopener');
+}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id);});});
 
@@ -1208,6 +1227,7 @@ Object.assign(window, {
   handleFiles,
   lightboxNext,
   lightboxPrev,
+  openCurrentLightboxImage,
   openAddModal,
   openAttachment,
   openCapModal,
