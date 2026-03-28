@@ -647,19 +647,19 @@ function populateYearFilter() {
 }
 function populateMonthFilter() {
   const now = new Date(), opts = ['<option value="">ทุกเดือน</option>'];
-  for (let y=now.getFullYear(); y>=now.getFullYear()-2; y--)
-    for (let m=11; m>=0; m--)
-      opts.push(`<option value="${y}-${String(m+1).padStart(2,'0')}">${MONTH_SH[m]} ${y}</option>`);
+  const year = now.getFullYear();
+  for (let m=11; m>=0; m--)
+    opts.push(`<option value="${year}-${String(m+1).padStart(2,'0')}">${MONTH_SH[m]} ${year}</option>`);
   document.getElementById('filterMonth').innerHTML = opts.join('');
 }
 function populateDashMonthFilter() {
   const now = new Date(), cur = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const opts = [];
-  for (let y=now.getFullYear(); y>=now.getFullYear()-2; y--)
-    for (let m=11; m>=0; m--) {
-      const val = `${y}-${String(m+1).padStart(2,'0')}`;
-      opts.push(`<option value="${val}"${val===cur?' selected':''}>${MONTH_TH[m]} ${y}</option>`);
-    }
+  const year = now.getFullYear();
+  for (let m=11; m>=0; m--) {
+    const val = `${year}-${String(m+1).padStart(2,'0')}`;
+    opts.push(`<option value="${val}"${val===cur?' selected':''}>${MONTH_TH[m]} ${year}</option>`);
+  }
   document.getElementById('dashMonthFilter').innerHTML = opts.join('');
 }
 
