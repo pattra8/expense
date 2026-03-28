@@ -167,16 +167,17 @@
     border-radius:var(--r-lg); padding:20px 24px; margin-bottom:24px;
   }
   .cap-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-  .cap-title  { font-size:13px; font-weight:600; color:var(--text-hi); }
-  .cap-pct    { font-size:13px; font-weight:700; color:var(--accent); }
-  .cap-bar-bg { background:var(--surface2); border-radius:99px; height:8px; overflow:hidden; }
+  .cap-title  { font-size:18px; font-weight:700; color:var(--text-hi); }
+  .cap-pct    { font-size:20px; font-weight:800; color:var(--accent); }
+  .cap-bar-bg { background:var(--surface2); border-radius:99px; height:14px; overflow:hidden; }
   .cap-bar-fill {
     height:100%; border-radius:99px;
     background:linear-gradient(90deg,var(--accent),#818cf8);
     transition:width .7s cubic-bezier(.4,0,.2,1);
   }
   .cap-bar-fill.over { background:linear-gradient(90deg,var(--rose),#fb7185); }
-  .cap-labels { display:flex; justify-content:space-between; margin-top:8px; font-size:12px; color:var(--text-lo); }
+  .cap-labels { display:flex; justify-content:space-between; gap:24px; margin-top:14px; font-size:24px; color:var(--text-mid); font-weight:700; }
+  .cap-labels span:last-child { text-align:right; }
 
   /* ── FILTERS ── */
   .filters { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
