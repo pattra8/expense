@@ -643,34 +643,48 @@ function populateDashMonthFilter() {
   document.getElementById('dashMonthFilter').innerHTML = opts.join('');
 }
 
-function setAdminState(on) {
+function setAdminState(on, persist = true) {
   isAdmin = on;
   document.getElementById('adminToggleBtn').textContent = on ? 'ออกจากระบบ' : 'เข้าสู่ระบบ Admin';
   document.getElementById('adminToggleBtn').classList.toggle('active', on);
   document.getElementById('badgeAdmin').style.display = on ? 'inline' : 'none';
   document.getElementById('addBtn').style.display = on ? 'inline-flex' : 'none';
   setAdminUI(on);
+  if (!persist) return;
+  if (on) {
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+      ts: Date.now(),
+      expiresAt: Date.now() + ADMIN_SESSION_TTL_MS,
+    }));
+  } else {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+  }
 }
 function rememberAdminSession() {
-  localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now() }));
+  setAdminState(true);
 }
 function clearAdminSession() {
-  localStorage.removeItem(ADMIN_SESSION_KEY);
+  setAdminState(false);
 }
 function restoreAdminSession() {
   try {
     const saved = JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY) || 'null');
-    const active = saved && Date.now() - Number(saved.ts || 0) < ADMIN_SESSION_TTL_MS;
+    const expiresAt = Number(saved?.expiresAt || 0);
+    const ts = Number(saved?.ts || 0);
+    const active = saved && ((expiresAt && expiresAt > Date.now()) || (ts && Date.now() - ts < ADMIN_SESSION_TTL_MS));
     if (active) {
-      setAdminState(true);
-      rememberAdminSession();
+      setAdminState(true, false);
+      localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+        ts: Date.now(),
+        expiresAt: Date.now() + ADMIN_SESSION_TTL_MS,
+      }));
       return;
     }
   } catch (err) {
     console.warn('Failed to restore admin session:', err);
   }
-  clearAdminSession();
-  setAdminState(false);
+  localStorage.removeItem(ADMIN_SESSION_KEY);
+  setAdminState(false, false);
 }
 
 function toggleAdminPrompt() {
@@ -682,7 +696,6 @@ function toggleAdminPrompt() {
 }
 function doLogin() {
   if (document.getElementById('loginInput').value === ADMIN_PWD) {
-    rememberAdminSession();
     setAdminState(true);
     document.getElementById('loginModal').classList.remove('open');
     renderDashboard(); renderExpenses();
@@ -693,7 +706,6 @@ function doLogin() {
   }
 }
 function logout() {
-  clearAdminSession();
   setAdminState(false);
   renderDashboard(); renderExpenses();
 }
