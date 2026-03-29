@@ -792,6 +792,12 @@ function renderDashboard() {
       <div class="stat-sub">${ye.filter(e=>e.type==='recurring').length} รายการ</div>
     </div>
     <div class="stat-card">
+      <div class="stat-icon" style="background:var(--violet-bg)">🟣</div>
+      <div class="stat-label">ค่าใช้จ่ายทั่วไป</div>
+      <div class="stat-value" style="color:var(--violet)">${fmt(gen)}</div>
+      <div class="stat-sub">${ye.filter(e=>e.type==='general').length} รายการ</div>
+    </div>
+    <div class="stat-card">
       <div class="stat-icon" style="background:var(--amber-bg)">📈</div>
       <div class="stat-label">ค่าใช้จ่ายลงทุน</div>
       <div class="stat-value" style="color:var(--amber)">${fmt(inv)}</div>
@@ -802,12 +808,6 @@ function renderDashboard() {
       <div class="stat-label">ค่าซ่อมบำรุง</div>
       <div class="stat-value" style="color:var(--rose)">${fmt(mnt)}</div>
       <div class="stat-sub">${ye.filter(e=>e.type==='maintenance').length} รายการ</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon" style="background:var(--violet-bg)">🟣</div>
-      <div class="stat-label">ค่าใช้จ่ายทั่วไป</div>
-      <div class="stat-value" style="color:var(--violet)">${fmt(gen)}</div>
-      <div class="stat-sub">${ye.filter(e=>e.type==='general').length} รายการ</div>
     </div>`;
 
   // Global cap max from localStorage
