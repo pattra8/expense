@@ -27,6 +27,8 @@
     --amber-bg:  #FEF3C7;
     --rose:      #E11D48;
     --rose-bg:   #FFE4E6;
+    --violet:    #7C3AED;
+    --violet-bg: #EDE9FE;
 
     --shadow-sm: 0 1px 3px rgba(15,22,35,0.07);
     --shadow-md: 0 4px 16px rgba(15,22,35,0.09), 0 1px 4px rgba(15,22,35,0.05);
@@ -205,6 +207,7 @@
   .badge-recurring   { background:var(--ok-bg);    color:var(--ok);    }
   .badge-investment  { background:var(--amber-bg);  color:var(--amber); }
   .badge-maintenance { background:var(--rose-bg);   color:var(--rose);  }
+  .badge-general     { background:var(--violet-bg); color:var(--violet); }
   .expense-info   { flex:1; min-width:0; }
   .expense-title  { font-size:14px; font-weight:600; color:var(--text-hi); margin-bottom:3px; }
   .expense-meta   { font-size:12px; color:var(--text-lo); display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
@@ -268,6 +271,7 @@
   .type-btn.active-recurring   { background:var(--ok-bg);    border-color:var(--ok);    color:var(--ok);    font-weight:600; }
   .type-btn.active-investment  { background:var(--amber-bg); border-color:var(--amber); color:var(--amber); font-weight:600; }
   .type-btn.active-maintenance { background:var(--rose-bg);  border-color:var(--rose);  color:var(--rose);  font-weight:600; }
+  .type-btn.active-general     { background:var(--violet-bg); border-color:var(--violet); color:var(--violet); font-weight:600; }
 
   /* ── UPLOAD ── */
   .upload-zone {
@@ -411,7 +415,7 @@
 
     <div class="cap-card">
       <div class="cap-header">
-        <div class="cap-title">วงเงินลงทุน + บำรุงรักษา</div>
+        <div class="cap-title">วงเงินลงทุน</div>
         <div style="display:flex;align-items:center;gap:10px">
           <button class="cap-set-btn" id="capSetBtn" onclick="openCapModal()">⚙️ ตั้งค่าวงเงิน</button>
           <div class="cap-pct" id="capAmountLabel">—</div>
@@ -450,6 +454,7 @@
         <option value="recurring">ประจำ</option>
         <option value="investment">ลงทุน</option>
         <option value="maintenance">ซ่อมบำรุง</option>
+        <option value="general">ทั่วไป</option>
       </select>
       <select class="filter-select" id="filterStatus" onchange="renderExpenses()">
         <option value="">ทุกสถานะ</option>
@@ -472,6 +477,7 @@
         <button class="type-btn" onclick="setType('recurring')"   id="typeBtnRecurring">🔄 ประจำ</button>
         <button class="type-btn" onclick="setType('investment')"  id="typeBtnInvestment">📈 ลงทุน</button>
         <button class="type-btn" onclick="setType('maintenance')" id="typeBtnMaintenance">🔧 ซ่อมบำรุง</button>
+        <button class="type-btn" onclick="setType('general')"     id="typeBtnGeneral">🟣 ทั่วไป</button>
       </div>
     </div>
     <div class="form-row">
@@ -539,7 +545,7 @@
 <div class="modal-overlay" id="capModal">
   <div class="modal" style="max-width:400px">
     <div class="modal-title">ตั้งค่าวงเงิน Cap Max</div>
-    <p style="font-size:13px;color:var(--text-mid);margin-bottom:20px;line-height:1.6">วงเงินนี้ใช้ร่วมกันระหว่างรายจ่าย <strong>ลงทุน</strong> และ <strong>ซ่อมบำรุง</strong> ทั้งหมด ระบบจะหักยอดทุกรายการออกจากวงเงินนี้อัตโนมัติ</p>
+    <p style="font-size:13px;color:var(--text-mid);margin-bottom:20px;line-height:1.6">วงเงินนี้ใช้สำหรับรายจ่าย <strong>ลงทุน</strong> เท่านั้น ระบบจะคำนวณจากรายการลงทุนทั้งหมดโดยไม่รวมซ่อมบำรุงหรือค่าใช้จ่ายทั่วไป</p>
     <div class="form-group">
       <label class="form-label">วงเงินอนุมัติสูงสุด (บาท)</label>
       <input class="form-input" type="number" id="fCapMaxGlobal" placeholder="เช่น 200000" style="font-size:18px;font-weight:600;padding:12px 14px">
@@ -749,8 +755,18 @@ function fmtDate(d) {
   const dt = new Date(d);
   return `${dt.getDate()} ${MONTH_SH[dt.getMonth()]} ${dt.getFullYear()}`;
 }
-function typeLabel(t)      { return t==='recurring'?'🔄 ประจำ':t==='investment'?'📈 ลงทุน':'🔧 ซ่อมบำรุง'; }
-function typeBadgeClass(t) { return t==='recurring'?'badge-recurring':t==='investment'?'badge-investment':'badge-maintenance'; }
+function typeLabel(t) {
+  return t==='recurring' ? '🔄 ประจำ'
+    : t==='investment' ? '📈 ลงทุน'
+    : t==='maintenance' ? '🔧 ซ่อมบำรุง'
+    : '🟣 ทั่วไป';
+}
+function typeBadgeClass(t) {
+  return t==='recurring' ? 'badge-recurring'
+    : t==='investment' ? 'badge-investment'
+    : t==='maintenance' ? 'badge-maintenance'
+    : 'badge-general';
+}
 
 function renderDashboard() {
   const year = parseInt(document.getElementById('dashYearFilter').value||new Date().getFullYear());
@@ -760,6 +776,7 @@ function renderDashboard() {
   const rec = ye.filter(e=>e.type==='recurring').reduce((s,e)=>s+Number(e.amount||0),0);
   const inv = ye.filter(e=>e.type==='investment').reduce((s,e)=>s+Number(e.amount||0),0);
   const mnt = ye.filter(e=>e.type==='maintenance').reduce((s,e)=>s+Number(e.amount||0),0);
+  const gen = ye.filter(e=>e.type==='general').reduce((s,e)=>s+Number(e.amount||0),0);
 
   document.getElementById('statCards').innerHTML = `
     <div class="stat-card accent">
@@ -785,11 +802,17 @@ function renderDashboard() {
       <div class="stat-label">ค่าซ่อมบำรุง</div>
       <div class="stat-value" style="color:var(--rose)">${fmt(mnt)}</div>
       <div class="stat-sub">${ye.filter(e=>e.type==='maintenance').length} รายการ</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:var(--violet-bg)">🟣</div>
+      <div class="stat-label">ค่าใช้จ่ายทั่วไป</div>
+      <div class="stat-value" style="color:var(--violet)">${fmt(gen)}</div>
+      <div class="stat-sub">${ye.filter(e=>e.type==='general').length} รายการ</div>
     </div>`;
 
   // Global cap max from localStorage
   const capMax = getGlobalCapMax();
-  const used   = inv+mnt;
+  const used   = inv;
   if (capMax>0) {
     const pct=Math.min((used/capMax)*100,100), over=used>capMax;
     document.getElementById('capBarFill').style.width   = pct+'%';
@@ -800,7 +823,7 @@ function renderDashboard() {
   } else {
     document.getElementById('capBarFill').style.width    = '0%';
     document.getElementById('capAmountLabel').textContent = 'ยังไม่กำหนดวงเงิน';
-    document.getElementById('capSpentLabel').textContent  = `ใช้ไป (ลงทุน+ซ่อมฯ): ${fmt(used)}`;
+    document.getElementById('capSpentLabel').textContent  = `ใช้ไป: ${fmt(used)}`;
     document.getElementById('capMaxLabel').textContent    = 'วงเงิน: ยังไม่กำหนด';
   }
   renderMonthHero(); renderMonthTxn();
@@ -819,6 +842,7 @@ function renderMonthHero() {
   const rec = me.filter(e=>e.type==='recurring').reduce((s,e)=>s+Number(e.amount||0),0);
   const inv = me.filter(e=>e.type==='investment').reduce((s,e)=>s+Number(e.amount||0),0);
   const mnt = me.filter(e=>e.type==='maintenance').reduce((s,e)=>s+Number(e.amount||0),0);
+  const gen = me.filter(e=>e.type==='general').reduce((s,e)=>s+Number(e.amount||0),0);
   document.getElementById('monthHeroCard').innerHTML = `
     <div class="month-hero">
       <div>
@@ -829,6 +853,7 @@ function renderMonthHero() {
           ${rec>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#6ee7b7"></div>ประจำ ${fmt(rec)}</div>`:''}
           ${inv>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#fcd34d"></div>ลงทุน ${fmt(inv)}</div>`:''}
           ${mnt>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#fca5a5"></div>ซ่อมฯ ${fmt(mnt)}</div>`:''}
+          ${gen>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#a78bfa"></div>ทั่วไป ${fmt(gen)}</div>`:''}
           ${tot===0?`<div class="hero-chip">ยังไม่มีรายการ</div>`:''}
         </div>
       </div>
@@ -870,7 +895,7 @@ function exportCsvCell(value) {
   return text;
 }
 function expenseTypeText(type) {
-  return type === 'recurring' ? 'ประจำ' : type === 'investment' ? 'ลงทุน' : 'ซ่อมบำรุง';
+  return type === 'recurring' ? 'ประจำ' : type === 'investment' ? 'ลงทุน' : type === 'maintenance' ? 'ซ่อมบำรุง' : 'ทั่วไป';
 }
 function expenseStatusText(status) {
   return status === 'paid' ? 'จ่ายแล้ว' : 'รอดำเนินการ';
@@ -923,6 +948,7 @@ function exportYearTransactions() {
   const url = URL.createObjectURL(blob);
   const fileName = `expense-ytd-${year}.csv`;
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isChromeDesktop = /Chrome/.test(navigator.userAgent) && !/Edg|OPR/.test(navigator.userAgent) && !isIOS;
   if (isIOS) {
     window.open(url, '_blank', 'noopener');
     setTimeout(() => URL.revokeObjectURL(url), 60000);
@@ -935,6 +961,11 @@ function exportYearTransactions() {
   document.body.appendChild(link);
   link.click();
   link.remove();
+  if (isChromeDesktop) {
+    setTimeout(() => {
+      window.open(url, '_blank', 'noopener');
+    }, 250);
+  }
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
@@ -1057,7 +1088,7 @@ function openEditModal(id) {
 }
 function setType(t) {
   currentType=t;
-  ['recurring','investment','maintenance'].forEach(tp=>{
+  ['recurring','investment','maintenance','general'].forEach(tp=>{
     document.getElementById('typeBtn'+tp.charAt(0).toUpperCase()+tp.slice(1)).className='type-btn'+(tp===t?' active-'+tp:'');
   });
 }
