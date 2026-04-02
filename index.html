@@ -294,6 +294,21 @@
   }
   .preview-file strong,.file-thumb strong { font-size:11px; color:var(--text-hi); }
   .preview-remove { position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--rose); color:#fff; border:none; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .save-progress {
+    display:none; margin-top:14px; padding:14px 16px; border-radius:var(--r-md);
+    background:var(--surface2); border:1px solid var(--border);
+  }
+  .save-progress.visible { display:block; }
+  .save-progress-head { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:8px; }
+  .save-progress-title { font-size:13px; font-weight:700; color:var(--text-hi); }
+  .save-progress-pct { font-size:12px; font-weight:700; color:var(--accent); }
+  .save-progress-bar { height:10px; border-radius:999px; overflow:hidden; background:#e6eaf5; }
+  .save-progress-fill {
+    height:100%; width:0%;
+    background:linear-gradient(90deg,var(--accent),#7c8df8);
+    border-radius:999px; transition:width .2s ease;
+  }
+  .save-progress-text { margin-top:8px; font-size:12px; color:var(--text-mid); }
 
   /* ── DETAIL ── */
   .detail-section { margin-bottom:18px; }
@@ -432,7 +447,7 @@
       <div class="section-title" id="txnSectionTitle">รายจ่ายเดือน —</div>
       <div style="display:flex;align-items:center;gap:10px">
         <select class="filter-select" id="dashMonthFilter" onchange="renderMonthTxn()"></select>
-        <button class="btn btn-primary" id="addBtnDashboard" style="display:none" onclick="openAddModal()">Add</button>
+        <button class="btn btn-primary" id="addBtnDashboard" style="display:none" onclick="openAddModal()">Add Expense</button>
       </div>
     </div>
     <div class="expense-list" id="recentList"></div>
@@ -444,7 +459,7 @@
       <div class="section-title">รายจ่ายทั้งหมด</div>
       <div style="display:flex;align-items:center;gap:10px">
         <button class="btn btn-ghost" id="exportBtn" onclick="exportYearTransactions()">Export</button>
-        <button class="btn btn-primary" id="addBtn" style="display:none" onclick="openAddModal()">Add</button>
+        <button class="btn btn-primary" id="addBtn" style="display:none" onclick="openAddModal()">Add Expense</button>
       </div>
     </div>
     <div class="filters">
@@ -522,10 +537,18 @@
         <div class="upload-text">คลิกหรือลากไฟล์มาวางที่นี่<br><small>รองรับรูป, PDF, Word, Excel, CSV หลายไฟล์พร้อมกัน</small></div>
       </div>
       <div class="upload-preview" id="uploadPreview"></div>
+      <div class="save-progress" id="saveProgress">
+        <div class="save-progress-head">
+          <div class="save-progress-title" id="saveProgressTitle">กำลังบันทึกข้อมูล...</div>
+          <div class="save-progress-pct" id="saveProgressPct">0%</div>
+        </div>
+        <div class="save-progress-bar"><div class="save-progress-fill" id="saveProgressFill"></div></div>
+        <div class="save-progress-text" id="saveProgressText">กำลังเตรียมข้อมูล...</div>
+      </div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost"   onclick="closeModal('expenseModal')">ยกเลิก</button>
-      <button class="btn btn-primary" onclick="saveExpense()">บันทึก</button>
+      <button class="btn btn-ghost" id="expenseCancelBtn" onclick="closeModal('expenseModal')">ยกเลิก</button>
+      <button class="btn btn-primary" id="expenseSaveBtn" onclick="saveExpense()">บันทึก</button>
     </div>
   </div>
 </div>
@@ -573,7 +596,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getStorage, ref, uploadBytes, uploadString, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+import { getStorage, ref, uploadBytesResumable, uploadString, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyAj8pSPvM22aA7ngOREZzECuvmgr3CM5OI',
@@ -587,7 +610,7 @@ const FIREBASE_CONFIG = {
 const EXPENSES_STORAGE_KEY = 'pattra8_expenses';
 const CAPMAX_STORAGE_KEY = 'pattra8_capMax';
 const ADMIN_SESSION_KEY = 'pattra8_admin_session';
-const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const ADMIN_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const FIRESTORE_SETTINGS_DOC = 'global';
 const FIREBASE_READY = Object.values(FIREBASE_CONFIG).every(v => v && !String(v).startsWith('REPLACE_WITH_'));
 
@@ -612,6 +635,7 @@ const MONTH_SH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','
 let isAdmin = false;
 let expenses = JSON.parse(localStorage.getItem(EXPENSES_STORAGE_KEY) || '[]');
 let editingId = null, currentSlips = [], lightboxSlips = [], lightboxIdx = 0, currentType = 'recurring';
+let isSavingExpense = false;
 
 function init() {
   restoreAdminSession();
@@ -1069,21 +1093,25 @@ function expenseCardHtml(e,showAdmin) {
 }
 
 function openAddModal() {
+  if (isSavingExpense) return;
   editingId=null; currentSlips=[];
   document.getElementById('modalTitle').textContent='เพิ่มรายจ่ายใหม่';
   ['fTitle','fDetail','fNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fAmount').value=''; document.getElementById('fStatus').value='paid';
   document.getElementById('uploadPreview').innerHTML='';
+  setExpenseSaveState(false);
   document.getElementById('fDate').value=new Date().toISOString().split('T')[0];
   setType('recurring'); document.getElementById('expenseModal').classList.add('open');
 }
 function openEditModal(id) {
+  if (isSavingExpense) return;
   const e=expenses.find(x=>x.id===id); if(!e)return;
   editingId=id; currentSlips=[...(e.slips||[])];
   document.getElementById('modalTitle').textContent='แก้ไขรายจ่าย';
   document.getElementById('fTitle').value=e.title||''; document.getElementById('fAmount').value=e.amount||'';
   document.getElementById('fDate').value=e.date||''; document.getElementById('fDetail').value=e.detail||'';
   document.getElementById('fNote').value=e.note||''; document.getElementById('fStatus').value=e.status||'paid';
+  setExpenseSaveState(false);
   setType(e.type||'recurring'); renderPreview(); document.getElementById('expenseModal').classList.add('open');
 }
 function setType(t) {
@@ -1116,7 +1144,7 @@ async function uploadSlipAsset(expenseId, slip, index) {
   if (normalized.url && !normalized.file && !isDataUrl(normalized.previewUrl || '')) return normalized;
   if (normalized.file) {
     const fileRef = ref(storage, `expense-slips/${expenseId}/${Date.now()}-${index}-${sanitizeFileName(normalized.name)}`);
-    await uploadBytes(fileRef, normalized.file, { contentType: normalized.type || undefined });
+    await uploadFileWithProgress(fileRef, normalized, index);
     return {
       url: await getDownloadURL(fileRef),
       name: normalized.name,
@@ -1136,11 +1164,94 @@ async function uploadSlipAsset(expenseId, slip, index) {
     kind: 'image',
   };
 }
+function setExpenseSaveProgress(progress = 0, title = 'กำลังบันทึกข้อมูล...', detail = 'กำลังประมวลผล...') {
+  const pct = Math.max(0, Math.min(100, Math.round(progress)));
+  document.getElementById('saveProgress').classList.add('visible');
+  document.getElementById('saveProgressTitle').textContent = title;
+  document.getElementById('saveProgressPct').textContent = `${pct}%`;
+  document.getElementById('saveProgressFill').style.width = `${pct}%`;
+  document.getElementById('saveProgressText').textContent = detail;
+}
+function setExpenseSaveState(isSaving) {
+  isSavingExpense = isSaving;
+  const saveBtn = document.getElementById('expenseSaveBtn');
+  const cancelBtn = document.getElementById('expenseCancelBtn');
+  saveBtn.disabled = isSaving;
+  cancelBtn.disabled = isSaving;
+  saveBtn.textContent = isSaving ? 'กำลังบันทึก...' : 'บันทึก';
+  if (!isSaving) {
+    document.getElementById('saveProgress').classList.remove('visible');
+    document.getElementById('saveProgressFill').style.width = '0%';
+    document.getElementById('saveProgressPct').textContent = '0%';
+    document.getElementById('saveProgressTitle').textContent = 'กำลังบันทึกข้อมูล...';
+    document.getElementById('saveProgressText').textContent = 'กำลังเตรียมข้อมูล...';
+  }
+}
+function createSlipProgressTracker(slips) {
+  const normalized = slips.map(normalizeAttachment).filter(Boolean);
+  const progressByIndex = normalized.map((att, index) => ({
+    index,
+    done: att.url && !att.file && !isDataUrl(att.previewUrl || ''),
+    loaded: att.url && !att.file && !isDataUrl(att.previewUrl || '') ? Math.max(Number(att.size || 0), 1) : 0,
+    total: Math.max(Number(att.size || 0), 1),
+    name: att.name || `ไฟล์ ${index + 1}`,
+  }));
+  const refresh = (activeIndex = -1, detailPrefix = 'กำลังอัปโหลดไฟล์แนบ...') => {
+    const total = progressByIndex.reduce((sum, item) => sum + item.total, 0);
+    const loaded = progressByIndex.reduce((sum, item) => sum + Math.min(item.loaded, item.total), 0);
+    const pct = total > 0 ? (loaded / total) * 100 : 100;
+    const current = progressByIndex[activeIndex];
+    const fileCount = progressByIndex.length;
+    const doneCount = progressByIndex.filter(item => item.done).length;
+    const detail = current
+      ? `${detailPrefix} ${current.name} (${Math.min(doneCount + (current.done ? 0 : 1), fileCount)}/${fileCount})`
+      : `${detailPrefix} ${doneCount}/${fileCount} ไฟล์`;
+    setExpenseSaveProgress(Math.max(8, pct * 0.85), 'กำลังอัปโหลดไฟล์แนบ...', detail);
+  };
+  return {
+    hasUploads: progressByIndex.some(item => !item.done),
+    start() {
+      if (progressByIndex.length) refresh(-1);
+    },
+    update(index, loaded, total) {
+      if (!progressByIndex[index]) return;
+      progressByIndex[index].loaded = Math.max(0, loaded);
+      progressByIndex[index].total = Math.max(1, total || progressByIndex[index].total);
+      progressByIndex[index].done = progressByIndex[index].loaded >= progressByIndex[index].total;
+      refresh(index);
+    },
+    complete(index) {
+      if (!progressByIndex[index]) return;
+      progressByIndex[index].loaded = progressByIndex[index].total;
+      progressByIndex[index].done = true;
+      refresh(index, 'อัปโหลดไฟล์แนบเรียบร้อย');
+    },
+  };
+}
+function uploadFileWithProgress(fileRef, normalized, index) {
+  return new Promise((resolve, reject) => {
+    const task = uploadBytesResumable(fileRef, normalized.file, { contentType: normalized.type || undefined });
+    task.on('state_changed',
+      snap => {
+        if (currentSaveTracker) currentSaveTracker.update(index, snap.bytesTransferred, snap.totalBytes);
+      },
+      reject,
+      () => {
+        if (currentSaveTracker) currentSaveTracker.complete(index);
+        resolve();
+      }
+    );
+  });
+}
+let currentSaveTracker = null;
 async function persistSlipAssets(expenseId, slips) {
   const uploaded = [];
+  currentSaveTracker = createSlipProgressTracker(slips);
+  if (currentSaveTracker.hasUploads) currentSaveTracker.start();
   for (let i = 0; i < slips.length; i += 1) {
     uploaded.push(compactAttachment(await uploadSlipAsset(expenseId, slips[i], i)));
   }
+  currentSaveTracker = null;
   return uploaded.filter(Boolean);
 }
 async function deleteSlipAssets(slips) {
@@ -1158,11 +1269,15 @@ async function deleteSlipAssets(slips) {
   await Promise.all(tasks);
 }
 async function saveExpense() {
+  if (isSavingExpense) return;
   const title=document.getElementById('fTitle').value.trim(), amount=document.getElementById('fAmount').value, date=document.getElementById('fDate').value;
   if(!title||!amount||!date){alert('กรุณากรอก: ชื่อรายจ่าย, จำนวนเงิน, วันที่');return;}
   const expenseId = editingId || makeExpenseId();
+  setExpenseSaveState(true);
+  setExpenseSaveProgress(5, editingId ? 'กำลังอัปเดตรายจ่าย...' : 'กำลังบันทึกรายจ่าย...', 'กำลังตรวจสอบข้อมูล...');
   try {
     const slips = usingFirestore ? await persistSlipAssets(expenseId, currentSlips) : [...currentSlips];
+    setExpenseSaveProgress(92, editingId ? 'กำลังอัปเดตรายจ่าย...' : 'กำลังบันทึกรายจ่าย...', 'กำลังบันทึกข้อมูลรายการ...');
     const entry={title,type:currentType,amount:parseFloat(amount),date,
       detail:document.getElementById('fDetail').value.trim(),note:document.getElementById('fNote').value.trim(),
       status:document.getElementById('fStatus').value,
@@ -1180,10 +1295,14 @@ async function saveExpense() {
       save();
       refreshUI();
     }
-    closeModal('expenseModal');
+    setExpenseSaveProgress(100, editingId ? 'อัปเดตรายจ่ายสำเร็จ' : 'บันทึกรายจ่ายสำเร็จ', 'ข้อมูลพร้อมใช้งานแล้ว');
+    closeModal('expenseModal', true);
   } catch (err) {
     console.error(err);
     alert('บันทึกรายการไม่สำเร็จ');
+  } finally {
+    currentSaveTracker = null;
+    setExpenseSaveState(false);
   }
 }
 async function deleteExpense(id) {
@@ -1278,7 +1397,10 @@ function openCurrentLightboxImage(){
   if (!src) return;
   window.open(src, '_blank', 'noopener');
 }
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeModal(id, force = false){
+  if (!force && id === 'expenseModal' && isSavingExpense) return;
+  document.getElementById(id).classList.remove('open');
+}
 document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id);});});
 
 // ── GLOBAL CAP MAX ──
