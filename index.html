@@ -791,6 +791,30 @@ function typeBadgeClass(t) {
     : t==='maintenance' ? 'badge-maintenance'
     : 'badge-general';
 }
+function getExpenseDateMs(expense) {
+  const value = expense?.date ? new Date(expense.date).getTime() : 0;
+  return Number.isFinite(value) ? value : 0;
+}
+function getTimestampMs(value) {
+  if (!value) return 0;
+  if (typeof value?.toMillis === 'function') return Number(value.toMillis()) || 0;
+  if (typeof value?.toDate === 'function') return Number(value.toDate().getTime()) || 0;
+  if (typeof value === 'object' && Number.isFinite(value.seconds)) {
+    return (Number(value.seconds) * 1000) + Math.floor(Number(value.nanoseconds || 0) / 1e6);
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+function compareExpenseIdsDesc(a, b) {
+  return String(b?.id || '').localeCompare(String(a?.id || ''));
+}
+function compareExpensesDesc(a, b) {
+  const dateDiff = getExpenseDateMs(b) - getExpenseDateMs(a);
+  if (dateDiff !== 0) return dateDiff;
+  const createdDiff = getTimestampMs(b?.createdAt) - getTimestampMs(a?.createdAt);
+  if (createdDiff !== 0) return createdDiff;
+  return compareExpenseIdsDesc(a, b);
+}
 
 function renderDashboard() {
   const year = parseInt(document.getElementById('dashYearFilter').value||new Date().getFullYear());
@@ -891,7 +915,7 @@ function renderMonthTxn() {
   renderMonthHero();
   const {yr,mi} = getMonthFilter();
   const me = expenses.filter(e=>{ const d=new Date(e.date); return d.getFullYear()===yr&&d.getMonth()===mi; })
-                     .sort((a,b)=>new Date(b.date)-new Date(a.date));
+                     .sort(compareExpensesDesc);
   document.getElementById('txnSectionTitle').textContent = `รายจ่ายเดือน${MONTH_TH[mi]} ${yr}`;
   document.getElementById('recentList').innerHTML = me.length
     ? me.map(e=>expenseCardHtml(e,false)).join('')
@@ -907,7 +931,7 @@ function renderExpenses() {
     if(status&&e.status!==status)return false;
     if(q&&!e.title.toLowerCase().includes(q)&&!(e.detail||'').toLowerCase().includes(q)&&!(e.note||'').toLowerCase().includes(q))return false;
     return true;
-  }).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  }).sort(compareExpensesDesc);
   document.getElementById('expenseList').innerHTML=list.length
     ?list.map(e=>expenseCardHtml(e,true)).join('')
     :'<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">ไม่พบรายการ</div></div>';
