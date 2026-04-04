@@ -179,7 +179,10 @@
   }
   .cap-bar-fill.over { background:linear-gradient(90deg,var(--rose),#fb7185); }
   .cap-labels { display:flex; justify-content:space-between; gap:24px; margin-top:14px; font-size:18px; color:var(--text-mid); font-weight:700; }
+  .cap-labels span { flex:1; }
+  .cap-labels span:nth-child(2) { text-align:center; }
   .cap-labels span:last-child { text-align:right; }
+  .cap-remaining { color:#15803d; }
 
   /* ── FILTERS ── */
   .filters { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
@@ -439,6 +442,7 @@
       <div class="cap-bar-bg"><div class="cap-bar-fill" id="capBarFill" style="width:0%"></div></div>
       <div class="cap-labels">
         <span id="capSpentLabel">ใช้ไป: ฿0</span>
+        <span id="capRemainingLabel" class="cap-remaining">คงเหลือ: ฿0</span>
         <span id="capMaxLabel">วงเงิน: ยังไม่กำหนด</span>
       </div>
     </div>
@@ -861,17 +865,20 @@ function renderDashboard() {
   // Global cap max from localStorage
   const capMax = getGlobalCapMax();
   const used   = inv;
+  const remaining = Math.max(capMax - used, 0);
   if (capMax>0) {
     const pct=Math.min((used/capMax)*100,100), over=used>capMax;
     document.getElementById('capBarFill').style.width   = pct+'%';
     document.getElementById('capBarFill').className     = 'cap-bar-fill'+(over?' over':'');
     document.getElementById('capAmountLabel').textContent = `${Math.round(pct)}%${over?' ⚠️':''}`;
     document.getElementById('capSpentLabel').textContent  = `ใช้ไป: ${fmt(used)}`;
+    document.getElementById('capRemainingLabel').textContent = `คงเหลือ: ${fmt(remaining)}`;
     document.getElementById('capMaxLabel').textContent    = `วงเงิน: ${fmt(capMax)}`;
   } else {
     document.getElementById('capBarFill').style.width    = '0%';
     document.getElementById('capAmountLabel').textContent = 'ยังไม่กำหนดวงเงิน';
     document.getElementById('capSpentLabel').textContent  = `ใช้ไป: ${fmt(used)}`;
+    document.getElementById('capRemainingLabel').textContent = 'คงเหลือ: ยังไม่กำหนด';
     document.getElementById('capMaxLabel').textContent    = 'วงเงิน: ยังไม่กำหนด';
   }
   renderMonthHero(); renderMonthTxn();
