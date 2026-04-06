@@ -414,7 +414,7 @@
 <!-- CONTAINER -->
 <div class="container">
   <div class="page-tabs">
-    <button class="page-tab active" onclick="showPage('dashboard')">ภาพรวม</button>
+    <button class="page-tab active" onclick="showPage('dashboard')">รายจ่ายประจำเดือน</button>
     <button class="page-tab"        onclick="showPage('expenses')">รายจ่ายทั้งหมด</button>
   </div>
 
@@ -424,10 +424,10 @@
 
     <div class="section-header" style="margin-top:8px">
       <div>
-        <div class="section-title">สรุปรายปี</div>
+        <div class="section-title">สรุปรายเดือน</div>
         <div class="section-sub" id="yearSubLabel"></div>
       </div>
-      <select class="filter-select" id="dashYearFilter" onchange="renderDashboard()"></select>
+      <select class="filter-select" id="dashMonthFilter" onchange="renderDashboard()"></select>
     </div>
     <div class="stats-grid" id="statCards"></div>
 
@@ -449,10 +449,7 @@
 
     <div class="section-header">
       <div class="section-title" id="txnSectionTitle">รายจ่ายเดือน —</div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <select class="filter-select" id="dashMonthFilter" onchange="renderMonthTxn()"></select>
-        <button class="btn btn-primary" id="addBtnDashboard" style="display:none" onclick="openAddModal()">Add Expense</button>
-      </div>
+      <button class="btn btn-primary" id="addBtnDashboard" style="display:none" onclick="openAddModal()">Add Expense</button>
     </div>
     <div class="expense-list" id="recentList"></div>
   </div>
@@ -636,6 +633,7 @@ if (FIREBASE_READY) {
 const ADMIN_PASSWORDS = ['expense888', 'nitipattra8'];
 const MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 const MONTH_SH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const MONTH_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 let isAdmin = false;
 let expenses = JSON.parse(localStorage.getItem(EXPENSES_STORAGE_KEY) || '[]');
@@ -644,13 +642,12 @@ let isSavingExpense = false;
 
 function init() {
   restoreAdminSession();
-  populateYearFilter(); populateMonthFilter(); populateDashMonthFilter();
+  populateMonthFilter(); populateDashMonthFilter();
   renderDashboard(); renderExpenses();
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
   if (usingFirestore) bindFirestore();
 }
 function refreshUI() {
-  populateYearFilter();
   populateDashMonthFilter();
   renderDashboard();
   renderExpenses();
@@ -674,18 +671,11 @@ function bindFirestore() {
   }, err => console.error('Firestore settings listener failed:', err));
 }
 
-function populateYearFilter() {
-  const years = [...new Set(expenses.map(e=>new Date(e.date).getFullYear()))];
-  const cur = new Date().getFullYear();
-  if (!years.includes(cur)) years.push(cur);
-  years.sort((a,b)=>b-a);
-  document.getElementById('dashYearFilter').innerHTML = years.map(y=>`<option value="${y}"${y===cur?' selected':''}>${y}</option>`).join('');
-}
 function populateMonthFilter() {
   const now = new Date(), opts = ['<option value="">ทุกเดือน</option>'];
   const year = now.getFullYear();
   for (let m=11; m>=0; m--)
-    opts.push(`<option value="${year}-${String(m+1).padStart(2,'0')}">${MONTH_SH[m]} ${year}</option>`);
+    opts.push(`<option value="${year}-${String(m+1).padStart(2,'0')}">${MONTH_EN[m]} ${year}</option>`);
   document.getElementById('filterMonth').innerHTML = opts.join('');
 }
 function populateDashMonthFilter() {
@@ -694,7 +684,7 @@ function populateDashMonthFilter() {
   const year = now.getFullYear();
   for (let m=11; m>=0; m--) {
     const val = `${year}-${String(m+1).padStart(2,'0')}`;
-    opts.push(`<option value="${val}"${val===cur?' selected':''}>${MONTH_TH[m]} ${year}</option>`);
+    opts.push(`<option value="${val}"${val===cur?' selected':''}>${MONTH_EN[m]} ${year}</option>`);
   }
   document.getElementById('dashMonthFilter').innerHTML = opts.join('');
 }
@@ -822,44 +812,47 @@ function compareExpensesDesc(a, b) {
 }
 
 function renderDashboard() {
-  const year = parseInt(document.getElementById('dashYearFilter').value||new Date().getFullYear());
-  document.getElementById('yearSubLabel').textContent = `ข้อมูลปี ${year}`;
-  const ye  = expenses.filter(e=>new Date(e.date).getFullYear()===year);
-  const tot = ye.reduce((s,e)=>s+Number(e.amount||0),0);
-  const rec = ye.filter(e=>e.type==='recurring').reduce((s,e)=>s+Number(e.amount||0),0);
-  const inv = ye.filter(e=>e.type==='investment').reduce((s,e)=>s+Number(e.amount||0),0);
-  const mnt = ye.filter(e=>e.type==='maintenance').reduce((s,e)=>s+Number(e.amount||0),0);
-  const gen = ye.filter(e=>e.type==='general').reduce((s,e)=>s+Number(e.amount||0),0);
+  const {yr,mi} = getMonthFilter();
+  document.getElementById('yearSubLabel').textContent = `${MONTH_EN[mi]} ${yr}`;
+  const monthly = expenses.filter(e=>{ const d=new Date(e.date); return d.getFullYear()===yr&&d.getMonth()===mi; });
+  const rec = monthly.filter(e=>e.type==='recurring').reduce((s,e)=>s+Number(e.amount||0),0);
+  const inv = monthly.filter(e=>e.type==='investment').reduce((s,e)=>s+Number(e.amount||0),0);
+  const mnt = monthly.filter(e=>e.type==='maintenance').reduce((s,e)=>s+Number(e.amount||0),0);
+  const gen = monthly.filter(e=>e.type==='general').reduce((s,e)=>s+Number(e.amount||0),0);
+  const currentYear = new Date().getFullYear();
+  const currentYearInvestment = expenses
+    .filter(e => new Date(e.date).getFullYear() === currentYear && e.type === 'investment')
+    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   document.getElementById('statCards').innerHTML = `
     <div class="stat-card">
       <div class="stat-icon" style="background:var(--ok-bg)">🔄</div>
       <div class="stat-label">ค่าใช้จ่ายประจำ</div>
       <div class="stat-value" style="color:var(--ok)">${fmt(rec)}</div>
-      <div class="stat-sub">${ye.filter(e=>e.type==='recurring').length} รายการ</div>
+      <div class="stat-sub">${monthly.filter(e=>e.type==='recurring').length} รายการ</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon" style="background:var(--violet-bg)">🟣</div>
       <div class="stat-label">ค่าใช้จ่ายทั่วไป</div>
       <div class="stat-value" style="color:var(--violet)">${fmt(gen)}</div>
-      <div class="stat-sub">${ye.filter(e=>e.type==='general').length} รายการ</div>
+      <div class="stat-sub">${monthly.filter(e=>e.type==='general').length} รายการ</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon" style="background:var(--amber-bg)">📈</div>
       <div class="stat-label">ค่าใช้จ่ายลงทุน</div>
       <div class="stat-value" style="color:var(--amber)">${fmt(inv)}</div>
-      <div class="stat-sub">${ye.filter(e=>e.type==='investment').length} รายการ</div>
+      <div class="stat-sub">${monthly.filter(e=>e.type==='investment').length} รายการ</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon" style="background:var(--rose-bg)">🔧</div>
       <div class="stat-label">ค่าซ่อมบำรุง</div>
       <div class="stat-value" style="color:var(--rose)">${fmt(mnt)}</div>
-      <div class="stat-sub">${ye.filter(e=>e.type==='maintenance').length} รายการ</div>
+      <div class="stat-sub">${monthly.filter(e=>e.type==='maintenance').length} รายการ</div>
     </div>`;
 
   // Global cap max from localStorage
   const capMax = getGlobalCapMax();
-  const used   = inv;
+  const used   = currentYearInvestment;
   const remaining = Math.max(capMax - used, 0);
   if (capMax>0) {
     const pct=Math.min((used/capMax)*100,100), over=used>capMax;
@@ -879,17 +872,18 @@ function renderDashboard() {
   renderMonthHero(); renderMonthTxn();
 }
 function renderExpensesHero(list) {
-  const visible = list || [];
-  const total = visible.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-  const recurring = visible.filter(expense => expense.type === 'recurring').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-  const investment = visible.filter(expense => expense.type === 'investment').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-  const maintenance = visible.filter(expense => expense.type === 'maintenance').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-  const general = visible.filter(expense => expense.type === 'general').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const year = new Date().getFullYear();
+  const yearly = expenses.filter(expense => new Date(expense.date).getFullYear() === year);
+  const total = yearly.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const recurring = yearly.filter(expense => expense.type === 'recurring').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const investment = yearly.filter(expense => expense.type === 'investment').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const maintenance = yearly.filter(expense => expense.type === 'maintenance').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const general = yearly.filter(expense => expense.type === 'general').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
   document.getElementById('expensesHeroCard').innerHTML = `
     <div class="month-hero">
       <div>
         <div class="hero-label">รายจ่ายทั้งหมด</div>
-        <div class="hero-month">สรุปรายการที่แสดงอยู่</div>
+        <div class="hero-month">สรุปค่าใช้จ่ายรายปี ${year}</div>
         <div class="hero-amount"><span>฿</span>${Number(total).toLocaleString('en-US')}</div>
         <div class="hero-chips">
           ${recurring>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#6ee7b7"></div>ประจำ ${fmt(recurring)}</div>`:''}
@@ -900,7 +894,7 @@ function renderExpensesHero(list) {
         </div>
       </div>
       <div class="hero-right">
-        <div class="hero-count">${visible.length}</div>
+        <div class="hero-count">${yearly.length}</div>
         <div class="hero-count-lbl">รายการ</div>
       </div>
     </div>`;
@@ -916,23 +910,12 @@ function renderMonthHero() {
   const {yr,mi} = getMonthFilter();
   const me  = expenses.filter(e=>{ const d=new Date(e.date); return d.getFullYear()===yr&&d.getMonth()===mi; });
   const tot = me.reduce((s,e)=>s+Number(e.amount||0),0);
-  const rec = me.filter(e=>e.type==='recurring').reduce((s,e)=>s+Number(e.amount||0),0);
-  const inv = me.filter(e=>e.type==='investment').reduce((s,e)=>s+Number(e.amount||0),0);
-  const mnt = me.filter(e=>e.type==='maintenance').reduce((s,e)=>s+Number(e.amount||0),0);
-  const gen = me.filter(e=>e.type==='general').reduce((s,e)=>s+Number(e.amount||0),0);
   document.getElementById('monthHeroCard').innerHTML = `
     <div class="month-hero">
       <div>
         <div class="hero-label">รายจ่ายประจำเดือน</div>
-        <div class="hero-month">${MONTH_TH[mi]} ${yr}</div>
+        <div class="hero-month">${MONTH_EN[mi]} ${yr}</div>
         <div class="hero-amount"><span>฿</span>${Number(tot).toLocaleString('en-US')}</div>
-        <div class="hero-chips">
-          ${rec>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#6ee7b7"></div>ประจำ ${fmt(rec)}</div>`:''}
-          ${inv>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#fcd34d"></div>ลงทุน ${fmt(inv)}</div>`:''}
-          ${mnt>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#fca5a5"></div>ซ่อมฯ ${fmt(mnt)}</div>`:''}
-          ${gen>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#a78bfa"></div>ทั่วไป ${fmt(gen)}</div>`:''}
-          ${tot===0?`<div class="hero-chip">ยังไม่มีรายการ</div>`:''}
-        </div>
       </div>
       <div class="hero-right">
         <div class="hero-count">${me.length}</div>
@@ -945,7 +928,7 @@ function renderMonthTxn() {
   const {yr,mi} = getMonthFilter();
   const me = expenses.filter(e=>{ const d=new Date(e.date); return d.getFullYear()===yr&&d.getMonth()===mi; })
                      .sort(compareExpensesDesc);
-  document.getElementById('txnSectionTitle').textContent = `รายจ่ายเดือน${MONTH_TH[mi]} ${yr}`;
+  document.getElementById('txnSectionTitle').textContent = `รายจ่ายเดือน ${MONTH_EN[mi]} ${yr}`;
   document.getElementById('recentList').innerHTML = me.length
     ? me.map(e=>expenseCardHtml(e,false)).join('')
     : '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">ไม่มีรายการในเดือนนี้</div></div>';
