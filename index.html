@@ -466,6 +466,7 @@
         <button class="btn btn-primary" id="addBtn" style="display:none" onclick="openAddModal()">Add Expense</button>
       </div>
     </div>
+    <div id="expensesHeroCard"></div>
     <div class="filters">
       <select class="filter-select" id="filterMonth" onchange="renderExpenses()"></select>
       <select class="filter-select" id="filterType" onchange="renderExpenses()">
@@ -813,10 +814,10 @@ function compareExpenseIdsDesc(a, b) {
   return String(b?.id || '').localeCompare(String(a?.id || ''));
 }
 function compareExpensesDesc(a, b) {
-  const dateDiff = getExpenseDateMs(b) - getExpenseDateMs(a);
-  if (dateDiff !== 0) return dateDiff;
   const createdDiff = getTimestampMs(b?.createdAt) - getTimestampMs(a?.createdAt);
   if (createdDiff !== 0) return createdDiff;
+  const dateDiff = getExpenseDateMs(b) - getExpenseDateMs(a);
+  if (dateDiff !== 0) return dateDiff;
   return compareExpenseIdsDesc(a, b);
 }
 
@@ -831,12 +832,6 @@ function renderDashboard() {
   const gen = ye.filter(e=>e.type==='general').reduce((s,e)=>s+Number(e.amount||0),0);
 
   document.getElementById('statCards').innerHTML = `
-    <div class="stat-card accent">
-      <div class="stat-icon">💰</div>
-      <div class="stat-label">รวมทั้งหมด</div>
-      <div class="stat-value">${fmt(tot)}</div>
-      <div class="stat-sub">${ye.length} รายการ</div>
-    </div>
     <div class="stat-card">
       <div class="stat-icon" style="background:var(--ok-bg)">🔄</div>
       <div class="stat-label">ค่าใช้จ่ายประจำ</div>
@@ -882,6 +877,33 @@ function renderDashboard() {
     document.getElementById('capMaxLabel').textContent    = 'วงเงิน: ยังไม่กำหนด';
   }
   renderMonthHero(); renderMonthTxn();
+}
+function renderExpensesHero(list) {
+  const visible = list || [];
+  const total = visible.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const recurring = visible.filter(expense => expense.type === 'recurring').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const investment = visible.filter(expense => expense.type === 'investment').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const maintenance = visible.filter(expense => expense.type === 'maintenance').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const general = visible.filter(expense => expense.type === 'general').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  document.getElementById('expensesHeroCard').innerHTML = `
+    <div class="month-hero">
+      <div>
+        <div class="hero-label">รายจ่ายทั้งหมด</div>
+        <div class="hero-month">สรุปรายการที่แสดงอยู่</div>
+        <div class="hero-amount"><span>฿</span>${Number(total).toLocaleString('en-US')}</div>
+        <div class="hero-chips">
+          ${recurring>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#6ee7b7"></div>ประจำ ${fmt(recurring)}</div>`:''}
+          ${investment>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#fcd34d"></div>ลงทุน ${fmt(investment)}</div>`:''}
+          ${maintenance>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#fca5a5"></div>ซ่อมฯ ${fmt(maintenance)}</div>`:''}
+          ${general>0?`<div class="hero-chip"><div class="hero-chip-dot" style="background:#a78bfa"></div>ทั่วไป ${fmt(general)}</div>`:''}
+          ${total===0?`<div class="hero-chip">ยังไม่มีรายการ</div>`:''}
+        </div>
+      </div>
+      <div class="hero-right">
+        <div class="hero-count">${visible.length}</div>
+        <div class="hero-count-lbl">รายการ</div>
+      </div>
+    </div>`;
 }
 
 function getMonthFilter() {
@@ -939,6 +961,7 @@ function renderExpenses() {
     if(q&&!e.title.toLowerCase().includes(q)&&!(e.detail||'').toLowerCase().includes(q)&&!(e.note||'').toLowerCase().includes(q))return false;
     return true;
   }).sort(compareExpensesDesc);
+  renderExpensesHero(list);
   document.getElementById('expenseList').innerHTML=list.length
     ?list.map(e=>expenseCardHtml(e,true)).join('')
     :'<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">ไม่พบรายการ</div></div>';
