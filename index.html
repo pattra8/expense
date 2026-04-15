@@ -1327,9 +1327,8 @@ function expenseCardHtml(e,showAdmin) {
     <div class="expense-info">
       <div class="expense-title-row">
         <span class="expense-title">${e.title}</span>
-        <span class="expense-category-badge">${costCategoryLabel(e)}</span>
       </div>
-      <div class="expense-meta"><span>📅 ${fmtDate(e.date)}</span><span>${sd}</span>${e.note?`<span>· ${e.note}</span>`:''}</div>
+      <div class="expense-meta"><span class="expense-category-badge">${costCategoryLabel(e)}</span><span>${sd}</span><span>📅 ${fmtDate(e.date)}</span>${e.note?`<span>· ${e.note}</span>`:''}</div>
       ${slipsHtml}${adminHtml}
     </div>
     <div class="expense-amount">${fmt(e.amount)}</div>
