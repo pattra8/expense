@@ -559,6 +559,7 @@
       <select class="filter-select" id="dashMonthFilter" onchange="renderDashboard()"></select>
     </div>
     <div class="stats-grid" id="statCards"></div>
+    <div id="facilitiesCard"></div>
 
     <div class="cap-card">
       <div class="cap-header">
@@ -593,7 +594,6 @@
       </div>
     </div>
     <div id="expensesHeroCard"></div>
-    <div id="facilitiesCard"></div>
     <div id="annualBreakdownCard"></div>
     <div class="filters">
       <select class="filter-select" id="filterMonth" onchange="renderExpenses()"></select>
@@ -1203,7 +1203,9 @@ let activeFacility = null;
 function renderFacilities() {
   const el = document.getElementById('facilitiesCard');
   if (!el) return;
-  const month = document.getElementById('filterMonth').value;
+  const month = document.getElementById('pageDashboard').style.display !== 'none'
+    ? document.getElementById('dashMonthFilter').value
+    : document.getElementById('filterMonth').value;
   const filtered = expenses.filter(e => {
     if (!month) return true;
     return new Date(e.date).toISOString().slice(0,7) === month;
@@ -1253,6 +1255,7 @@ function toggleFacilityFilter(key) {
   activeFacility = activeFacility === key ? null : key;
   const sel = document.getElementById('filterCostCategory');
   sel.value = activeFacility || '';
+  showPage('expenses');
   renderFacilities();
   renderExpenses();
 }
