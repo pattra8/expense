@@ -559,7 +559,7 @@
       <select class="filter-select" id="dashMonthFilter" onchange="renderDashboard()"></select>
     </div>
     <div class="stats-grid" id="statCards"></div>
-    <div id="facilitiesCard"></div>
+    <div id="dashboardFacilitiesCard"></div>
 
     <div class="cap-card">
       <div class="cap-header">
@@ -594,6 +594,7 @@
       </div>
     </div>
     <div id="expensesHeroCard"></div>
+    <div id="expensesFacilitiesCard"></div>
     <div id="annualBreakdownCard"></div>
     <div class="filters">
       <select class="filter-select" id="filterMonth" onchange="renderExpenses()"></select>
@@ -818,7 +819,7 @@ let isSavingExpense = false;
 function init() {
   restoreAdminSession();
   populateMonthFilter(); populateDashMonthFilter();
-  renderDashboard(); renderFacilities(); renderExpenses();
+  renderDashboard(); renderExpenses();
   document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
   if (usingFirestore) bindFirestore();
 }
@@ -921,7 +922,7 @@ function doLogin() {
   if (ADMIN_PASSWORDS.includes(enteredPassword)) {
     setAdminState(true);
     document.getElementById('loginModal').classList.remove('open');
-    renderDashboard(); renderFacilities(); renderExpenses();
+    renderDashboard(); renderExpenses();
   } else {
     document.getElementById('loginError').style.display = 'block';
     document.getElementById('loginInput').value = '';
@@ -930,7 +931,7 @@ function doLogin() {
 }
 function logout() {
   setAdminState(false);
-  renderDashboard(); renderFacilities(); renderExpenses();
+  renderDashboard(); renderExpenses();
 }
 function closeLogin() { document.getElementById('loginModal').classList.remove('open'); }
 
@@ -1066,6 +1067,7 @@ function renderDashboard() {
     document.getElementById('capRemainingLabel').textContent = 'คงเหลือ: ยังไม่กำหนด';
     document.getElementById('capMaxLabel').textContent    = 'วงเงิน: ยังไม่กำหนด';
   }
+  renderDashboardFacilities();
   renderMonthHero(); renderMonthTxn();
 }
 function renderAnnualBreakdown() {
@@ -1183,9 +1185,13 @@ function renderMonthHero() {
 function renderMonthTxn() {
   renderMonthHero();
   const {yr,mi} = getMonthFilter();
-  const me = expenses.filter(e=>{ const d=new Date(e.date); return d.getFullYear()===yr&&d.getMonth()===mi; })
+  const me = expenses.filter(e=>{
+                       const d=new Date(e.date);
+                       return d.getFullYear()===yr&&d.getMonth()===mi
+                         && (!activeDashboardFacility || costCategoryValue(e)===activeDashboardFacility);
+                     })
                      .sort(compareExpensesDesc);
-  document.getElementById('txnSectionTitle').textContent = `รายจ่ายเดือน ${MONTH_EN[mi]} ${yr}`;
+  document.getElementById('txnSectionTitle').textContent = `รายจ่ายเดือน ${MONTH_EN[mi]} ${yr}${activeDashboardFacility ? ' · ' + activeDashboardFacility : ''}`;
   document.getElementById('recentList').innerHTML = me.length
     ? me.map(e=>expenseCardHtml(e,false)).join('')
     : '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">ไม่มีรายการในเดือนนี้</div></div>';
@@ -1198,27 +1204,51 @@ const FACILITIES = [
   { key: 'สวน / ภูมิทัศน์',   label: 'สวน & ภูมิทัศน์',  emoji: '🌳', color: '#16A34A' },
 ];
 
-let activeFacility = null;
+let activeDashboardFacility = null;
+let activeExpensesFacility = null;
 
-function renderFacilities() {
-  const el = document.getElementById('facilitiesCard');
-  if (!el) return;
-  const month = document.getElementById('pageDashboard').style.display !== 'none'
-    ? document.getElementById('dashMonthFilter').value
-    : document.getElementById('filterMonth').value;
-  const filtered = expenses.filter(e => {
-    if (!month) return true;
-    return new Date(e.date).toISOString().slice(0,7) === month;
-  });
+function facilityRows(sourceItems, activeKey, clickFnName) {
   const data = FACILITIES.map(f => {
-    const items = filtered.filter(e => (e.costCategory || 'อื่น ๆ') === f.key);
+    const items = sourceItems.filter(e => (e.costCategory || 'อื่น ๆ') === f.key);
     const total = items.reduce((s, e) => s + Number(e.amount || 0), 0);
     return { ...f, total, count: items.length };
   });
   const maxAmt = Math.max(...data.map(d => d.total), 1);
-  const grandTotal = data.reduce((s, d) => s + d.total, 0);
-  const monthLabel = month ? new Date(month + '-01').toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }) : 'ทั้งหมด';
+  if (data.every(d => d.total === 0)) {
+    return '<div class="facilities-empty">ยังไม่มีข้อมูลค่าใช้จ่ายพื้นที่ส่วนกลางในช่วงนี้</div>';
+  }
+  return `<div class="facilities-list">${data.map(d => {
+    const pct = maxAmt > 0 ? (d.total / maxAmt) * 100 : 0;
+    const isActive = activeKey === d.key;
+    return `<div class="facility-row${isActive ? ' active' : ''}" onclick="${clickFnName}('${d.key}')">
+      <div class="facility-emoji">${d.emoji}</div>
+      <div class="facility-info">
+        <div class="facility-name">
+          <span>${d.label}</span>
+          <span class="facility-amt">${d.total > 0 ? '฿' + d.total.toLocaleString('th-TH') : '—'}</span>
+        </div>
+        <div class="facility-bar-track">
+          <div class="facility-bar-fill" style="width:${pct}%;background:${d.color}"></div>
+        </div>
+        <div class="facility-count">${d.count > 0 ? d.count + ' รายการ' : 'ยังไม่มีรายการ'}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
 
+function facilitiesTotal(sourceItems) {
+  return sourceItems
+    .filter(e => FACILITIES.some(f => f.key === (e.costCategory || 'อื่น ๆ')))
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+}
+
+function renderDashboardFacilities() {
+  const el = document.getElementById('dashboardFacilitiesCard');
+  if (!el) return;
+  const month = document.getElementById('dashMonthFilter').value;
+  const filtered = expenses.filter(e => e?.date && new Date(e.date).toISOString().slice(0,7) === month);
+  const grandTotal = facilitiesTotal(filtered);
+  const monthLabel = month ? new Date(month + '-01').toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }) : 'ทั้งหมด';
   el.innerHTML = `
     <div class="facilities-card">
       <div class="facilities-head">
@@ -1226,44 +1256,54 @@ function renderFacilities() {
           <div class="facilities-title">ค่าใช้จ่ายพื้นที่ส่วนกลาง</div>
           <div class="facilities-sub">${monthLabel}${grandTotal > 0 ? ' · ฿' + grandTotal.toLocaleString('th-TH') : ''}</div>
         </div>
-        ${activeFacility ? `<button onclick="clearFacilityFilter()" style="font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-bg);border:none;padding:4px 12px;border-radius:99px;cursor:pointer;">✕ ล้าง filter</button>` : ''}
+        ${activeDashboardFacility ? `<button onclick="clearDashboardFacilityFilter()" style="font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-bg);border:none;padding:4px 12px;border-radius:99px;cursor:pointer;">✕ ล้าง filter</button>` : ''}
       </div>
-      ${data.every(d => d.total === 0)
-        ? `<div class="facilities-empty">ยังไม่มีข้อมูลค่าใช้จ่ายพื้นที่ส่วนกลางในช่วงนี้</div>`
-        : `<div class="facilities-list">${data.map(d => {
-            const pct = maxAmt > 0 ? (d.total / maxAmt) * 100 : 0;
-            const isActive = activeFacility === d.key;
-            return `<div class="facility-row${isActive ? ' active' : ''}" onclick="toggleFacilityFilter('${d.key}')">
-              <div class="facility-emoji">${d.emoji}</div>
-              <div class="facility-info">
-                <div class="facility-name">
-                  <span>${d.label}</span>
-                  <span class="facility-amt">${d.total > 0 ? '฿' + d.total.toLocaleString('th-TH') : '—'}</span>
-                </div>
-                <div class="facility-bar-track">
-                  <div class="facility-bar-fill" style="width:${pct}%;background:${d.color}"></div>
-                </div>
-                <div class="facility-count">${d.count > 0 ? d.count + ' รายการ' : 'ยังไม่มีรายการ'}</div>
-              </div>
-            </div>`;
-          }).join('')}</div>`
-      }
+      ${facilityRows(filtered, activeDashboardFacility, 'toggleDashboardFacilityFilter')}
     </div>`;
 }
 
-function toggleFacilityFilter(key) {
-  activeFacility = activeFacility === key ? null : key;
+function renderExpensesFacilities() {
+  const el = document.getElementById('expensesFacilitiesCard');
+  if (!el) return;
+  const year = new Date().getFullYear();
+  const yearly = expenses.filter(e => e?.date && new Date(e.date).getFullYear() === year);
+  const grandTotal = facilitiesTotal(yearly);
+  el.innerHTML = `
+    <div class="facilities-card">
+      <div class="facilities-head">
+        <div>
+          <div class="facilities-title">ค่าใช้จ่ายพื้นที่ส่วนกลาง</div>
+          <div class="facilities-sub">ปี ${year}${grandTotal > 0 ? ' · ฿' + grandTotal.toLocaleString('th-TH') : ''}</div>
+        </div>
+        ${activeExpensesFacility ? `<button onclick="clearExpensesFacilityFilter()" style="font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-bg);border:none;padding:4px 12px;border-radius:99px;cursor:pointer;">✕ ล้าง filter</button>` : ''}
+      </div>
+      ${facilityRows(yearly, activeExpensesFacility, 'toggleExpensesFacilityFilter')}
+    </div>`;
+}
+
+function toggleDashboardFacilityFilter(key) {
+  activeDashboardFacility = activeDashboardFacility === key ? null : key;
+  renderDashboardFacilities();
+  renderMonthTxn();
+}
+
+function clearDashboardFacilityFilter() {
+  activeDashboardFacility = null;
+  renderDashboardFacilities();
+  renderMonthTxn();
+}
+
+function toggleExpensesFacilityFilter(key) {
+  activeExpensesFacility = activeExpensesFacility === key ? null : key;
   const sel = document.getElementById('filterCostCategory');
-  sel.value = activeFacility || '';
-  showPage('expenses');
-  renderFacilities();
+  sel.value = activeExpensesFacility || '';
+  if (activeExpensesFacility) document.getElementById('filterMonth').value = '';
   renderExpenses();
 }
 
-function clearFacilityFilter() {
-  activeFacility = null;
+function clearExpensesFacilityFilter() {
+  activeExpensesFacility = null;
   document.getElementById('filterCostCategory').value = '';
-  renderFacilities();
   renderExpenses();
 }
 
@@ -1271,8 +1311,10 @@ function renderExpenses() {
   const month=document.getElementById('filterMonth').value, type=document.getElementById('filterType').value,
         costCategory=document.getElementById('filterCostCategory').value,
         status=document.getElementById('filterStatus').value, q=document.getElementById('filterSearch').value.toLowerCase();
+  activeExpensesFacility = FACILITIES.some(f => f.key === costCategory) ? costCategory : null;
   const list=[...expenses].filter(e=>{
     if(month&&new Date(e.date).toISOString().slice(0,7)!==month)return false;
+    if(activeExpensesFacility&&new Date(e.date).getFullYear()!==new Date().getFullYear())return false;
     if(type&&e.type!==type)return false;
     if(costCategory&&costCategoryValue(e)!==costCategory)return false;
     if(status&&e.status!==status)return false;
@@ -1280,7 +1322,7 @@ function renderExpenses() {
     return true;
   }).sort(compareExpensesDesc);
   renderExpensesHero(list);
-  renderFacilities();
+  renderExpensesFacilities();
   renderAnnualBreakdown();
   document.getElementById('expenseList').innerHTML=list.length
     ?list.map(e=>expenseCardHtml(e,true)).join('')
@@ -1871,16 +1913,19 @@ Object.assign(window, {
   openLightbox,
   removeSlip,
   renderDashboard,
+  renderDashboardFacilities,
   renderExpenses,
-  renderFacilities,
+  renderExpensesFacilities,
   renderMonthTxn,
   saveCapMax,
   saveExpense,
   setCostCategory,
   setType,
   showPage,
-  toggleFacilityFilter,
-  clearFacilityFilter,
+  toggleDashboardFacilityFilter,
+  toggleExpensesFacilityFilter,
+  clearDashboardFacilityFilter,
+  clearExpensesFacilityFilter,
   toggleAdminPrompt,
 });
 seedIfEmpty(); init();
