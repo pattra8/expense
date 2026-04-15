@@ -266,6 +266,7 @@
   .expense-info   { flex:1; min-width:0; }
   .expense-title  { font-size:14px; font-weight:600; color:var(--text-hi); margin-bottom:3px; }
   .expense-meta   { font-size:12px; color:var(--text-lo); display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .expense-category-badge { background:var(--accent-bg); color:var(--accent-dk); padding:2px 7px; border-radius:99px; font-weight:600; }
   .expense-amount { font-size:16px; font-weight:700; color:var(--text-hi); white-space:nowrap; text-align:right; flex-shrink:0; }
   .expense-slips  { display:flex; gap:5px; margin-top:9px; flex-wrap:wrap; }
   .slip-thumb     { width:48px; height:48px; border-radius:7px; object-fit:cover; border:1.5px solid var(--border); cursor:pointer; }
@@ -526,6 +527,21 @@
         <option value="maintenance">ซ่อมบำรุง</option>
         <option value="general">ทั่วไป</option>
       </select>
+      <select class="filter-select" id="filterCostCategory" onchange="renderExpenses()">
+        <option value="">ทุกหมวด</option>
+        <option value="ส่วนกลาง">ส่วนกลาง</option>
+        <option value="สโมสร">สโมสร</option>
+        <option value="ฟิตเนส">ฟิตเนส</option>
+        <option value="สระว่ายน้ำ">สระว่ายน้ำ</option>
+        <option value="แม่บ้าน / ทำความสะอาด">แม่บ้าน / ทำความสะอาด</option>
+        <option value="รปภ.">รปภ.</option>
+        <option value="กล้องวงจรปิด">กล้องวงจรปิด</option>
+        <option value="สวน / ภูมิทัศน์">สวน / ภูมิทัศน์</option>
+        <option value="ไฟฟ้าส่วนกลาง">ไฟฟ้าส่วนกลาง</option>
+        <option value="ประปา">ประปา</option>
+        <option value="สำนักงานนิติ">สำนักงานนิติ</option>
+        <option value="อื่น ๆ">อื่น ๆ</option>
+      </select>
       <select class="filter-select" id="filterStatus" onchange="renderExpenses()">
         <option value="">ทุกสถานะ</option>
         <option value="paid">จ่ายแล้ว</option>
@@ -549,6 +565,23 @@
         <button class="type-btn" onclick="setType('maintenance')" id="typeBtnMaintenance">🔧 ซ่อมบำรุง</button>
         <button class="type-btn" onclick="setType('general')"     id="typeBtnGeneral">🟣 ทั่วไป</button>
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">หมวดค่าใช้จ่าย</label>
+      <select class="form-select" id="fCostCategory">
+        <option value="ส่วนกลาง">ส่วนกลาง</option>
+        <option value="สโมสร">สโมสร</option>
+        <option value="ฟิตเนส">ฟิตเนส</option>
+        <option value="สระว่ายน้ำ">สระว่ายน้ำ</option>
+        <option value="แม่บ้าน / ทำความสะอาด">แม่บ้าน / ทำความสะอาด</option>
+        <option value="รปภ.">รปภ.</option>
+        <option value="กล้องวงจรปิด">กล้องวงจรปิด</option>
+        <option value="สวน / ภูมิทัศน์">สวน / ภูมิทัศน์</option>
+        <option value="ไฟฟ้าส่วนกลาง">ไฟฟ้าส่วนกลาง</option>
+        <option value="ประปา">ประปา</option>
+        <option value="สำนักงานนิติ">สำนักงานนิติ</option>
+        <option value="อื่น ๆ">อื่น ๆ</option>
+      </select>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -839,6 +872,9 @@ function typeBadgeClass(t) {
     : t==='maintenance' ? 'badge-maintenance'
     : 'badge-general';
 }
+function costCategoryLabel(e) {
+  return e?.costCategory || 'อื่น ๆ';
+}
 function getExpenseDateMs(expense) {
   const value = expense?.date ? new Date(expense.date).getTime() : 0;
   return Number.isFinite(value) ? value : 0;
@@ -1049,12 +1085,14 @@ function renderMonthTxn() {
 
 function renderExpenses() {
   const month=document.getElementById('filterMonth').value, type=document.getElementById('filterType').value,
+        costCategory=document.getElementById('filterCostCategory').value,
         status=document.getElementById('filterStatus').value, q=document.getElementById('filterSearch').value.toLowerCase();
   const list=[...expenses].filter(e=>{
     if(month&&new Date(e.date).toISOString().slice(0,7)!==month)return false;
     if(type&&e.type!==type)return false;
+    if(costCategory&&costCategoryLabel(e)!==costCategory)return false;
     if(status&&e.status!==status)return false;
-    if(q&&!e.title.toLowerCase().includes(q)&&!(e.detail||'').toLowerCase().includes(q)&&!(e.note||'').toLowerCase().includes(q))return false;
+    if(q&&!e.title.toLowerCase().includes(q)&&!costCategoryLabel(e).toLowerCase().includes(q)&&!(e.detail||'').toLowerCase().includes(q)&&!(e.note||'').toLowerCase().includes(q))return false;
     return true;
   }).sort(compareExpensesDesc);
   renderExpensesHero(list);
@@ -1092,6 +1130,7 @@ function exportYearTransactions() {
     'วันที่',
     'ชื่อรายจ่าย',
     'ประเภท',
+    'หมวดค่าใช้จ่าย',
     'สถานะ',
     'จำนวนเงิน',
     'รายละเอียด',
@@ -1104,6 +1143,7 @@ function exportYearTransactions() {
     e.date || '',
     e.title || '',
     expenseTypeText(e.type),
+    costCategoryLabel(e),
     expenseStatusText(e.status),
     Number(e.amount || 0).toFixed(2),
     e.detail || '',
@@ -1236,7 +1276,7 @@ function expenseCardHtml(e,showAdmin) {
     <span class="expense-type-badge ${typeBadgeClass(e.type)}">${typeLabel(e.type)}</span>
     <div class="expense-info">
       <div class="expense-title">${e.title}</div>
-      <div class="expense-meta"><span>📅 ${fmtDate(e.date)}</span><span>${sd}</span>${e.note?`<span>· ${e.note}</span>`:''}</div>
+      <div class="expense-meta"><span>📅 ${fmtDate(e.date)}</span><span class="expense-category-badge">${costCategoryLabel(e)}</span><span>${sd}</span>${e.note?`<span>· ${e.note}</span>`:''}</div>
       ${slipsHtml}${adminHtml}
     </div>
     <div class="expense-amount">${fmt(e.amount)}</div>
@@ -1249,6 +1289,7 @@ function openAddModal() {
   document.getElementById('modalTitle').textContent='เพิ่มรายจ่ายใหม่';
   ['fTitle','fDetail','fNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fAmount').value=''; document.getElementById('fStatus').value='paid';
+  document.getElementById('fCostCategory').value='ส่วนกลาง';
   document.getElementById('uploadPreview').innerHTML='';
   setExpenseSaveState(false);
   document.getElementById('fDate').value=new Date().toISOString().split('T')[0];
@@ -1262,6 +1303,7 @@ function openEditModal(id) {
   document.getElementById('fTitle').value=e.title||''; document.getElementById('fAmount').value=e.amount||'';
   document.getElementById('fDate').value=e.date||''; document.getElementById('fDetail').value=e.detail||'';
   document.getElementById('fNote').value=e.note||''; document.getElementById('fStatus').value=e.status||'paid';
+  document.getElementById('fCostCategory').value=costCategoryLabel(e);
   setExpenseSaveState(false);
   setType(e.type||'recurring'); renderPreview(); document.getElementById('expenseModal').classList.add('open');
 }
@@ -1430,6 +1472,7 @@ async function saveExpense() {
     const slips = usingFirestore ? await persistSlipAssets(expenseId, currentSlips) : [...currentSlips];
     setExpenseSaveProgress(92, editingId ? 'กำลังอัปเดตรายจ่าย...' : 'กำลังบันทึกรายจ่าย...', 'กำลังบันทึกข้อมูลรายการ...');
     const entry={title,type:currentType,amount:parseFloat(amount),date,
+      costCategory:document.getElementById('fCostCategory').value,
       detail:document.getElementById('fDetail').value.trim(),note:document.getElementById('fNote').value.trim(),
       status:document.getElementById('fStatus').value,
       slips};
@@ -1515,6 +1558,7 @@ function openDetail(id) {
       <div class="detail-section"><div class="detail-label">วันที่</div><div class="detail-value">${fmtDate(e.date)}</div></div>
       <div class="detail-section"><div class="detail-label">สถานะ</div><div class="detail-value">${e.status==='paid'?'✅ จ่ายแล้ว':'⏳ รอดำเนินการ'}</div></div>
     </div>
+    <div class="detail-section"><div class="detail-label">หมวดค่าใช้จ่าย</div><div class="detail-value">${costCategoryLabel(e)}</div></div>
     ${e.detail?`<div class="detail-section"><div class="detail-label">รายละเอียด</div><div class="detail-value">${e.detail}</div></div>`:''}
     ${e.note?`<div class="detail-section"><div class="detail-label">หมายเหตุ</div><div class="detail-value">${e.note}</div></div>`:''}
     ${slipsHtml}`;
@@ -1593,14 +1637,14 @@ function seedIfEmpty() {
   if(expenses.length>0)return;
   const y=new Date().getFullYear();
   expenses=[
-    {id:'s1',title:'ค่ารักษาความปลอดภัย (Alpha One)',type:'recurring',amount:18000,date:`${y}-01-05`,detail:'ค่าจ้างบริษัทรักษาความปลอดภัย',note:'',status:'paid',slips:[]},
-    {id:'s2',title:'ค่าไฟส่วนกลาง',type:'recurring',amount:4200,date:`${y}-01-10`,detail:'',note:'',status:'paid',slips:[]},
-    {id:'s3',title:'ค่าน้ำส่วนกลาง',type:'recurring',amount:1800,date:`${y}-01-10`,detail:'',note:'',status:'paid',slips:[]},
-    {id:'s4',title:'ติดตั้งระบบ CCTV (Janputsuk)',type:'investment',amount:85000,date:`${y}-02-15`,detail:'ระบบกล้องวงจรปิด 16 ตัว NVR 4K',note:'ผ่านมติที่ประชุม',status:'paid',capMax:200000,slips:[]},
-    {id:'s5',title:'ซ่อมท่อประปาส่วนกลาง',type:'maintenance',amount:3500,date:`${y}-02-20`,detail:'ท่อแตกบริเวณถนนหลัก',note:'',status:'paid',slips:[]},
-    {id:'s6',title:'ค่ารักษาความปลอดภัย (TIS Group)',type:'recurring',amount:18000,date:`${y}-03-05`,detail:'',note:'เปลี่ยนจาก Alpha One',status:'paid',slips:[]},
-    {id:'s7',title:'ค่าไฟส่วนกลาง',type:'recurring',amount:4500,date:`${y}-03-10`,detail:'',note:'',status:'paid',slips:[]},
-    {id:'s8',title:'ซ่อมบำรุงประตูกั้นรถ',type:'maintenance',amount:12000,date:`${y}-03-18`,detail:'เปลี่ยนมอเตอร์ประตูและ sensor',note:'',status:'paid',slips:[]},
+    {id:'s1',title:'ค่ารักษาความปลอดภัย (Alpha One)',type:'recurring',costCategory:'รปภ.',amount:18000,date:`${y}-01-05`,detail:'ค่าจ้างบริษัทรักษาความปลอดภัย',note:'',status:'paid',slips:[]},
+    {id:'s2',title:'ค่าไฟส่วนกลาง',type:'recurring',costCategory:'ไฟฟ้าส่วนกลาง',amount:4200,date:`${y}-01-10`,detail:'',note:'',status:'paid',slips:[]},
+    {id:'s3',title:'ค่าน้ำส่วนกลาง',type:'recurring',costCategory:'ประปา',amount:1800,date:`${y}-01-10`,detail:'',note:'',status:'paid',slips:[]},
+    {id:'s4',title:'ติดตั้งระบบ CCTV (Janputsuk)',type:'investment',costCategory:'กล้องวงจรปิด',amount:85000,date:`${y}-02-15`,detail:'ระบบกล้องวงจรปิด 16 ตัว NVR 4K',note:'ผ่านมติที่ประชุม',status:'paid',capMax:200000,slips:[]},
+    {id:'s5',title:'ซ่อมท่อประปาส่วนกลาง',type:'maintenance',costCategory:'ประปา',amount:3500,date:`${y}-02-20`,detail:'ท่อแตกบริเวณถนนหลัก',note:'',status:'paid',slips:[]},
+    {id:'s6',title:'ค่ารักษาความปลอดภัย (TIS Group)',type:'recurring',costCategory:'รปภ.',amount:18000,date:`${y}-03-05`,detail:'',note:'เปลี่ยนจาก Alpha One',status:'paid',slips:[]},
+    {id:'s7',title:'ค่าไฟส่วนกลาง',type:'recurring',costCategory:'ไฟฟ้าส่วนกลาง',amount:4500,date:`${y}-03-10`,detail:'',note:'',status:'paid',slips:[]},
+    {id:'s8',title:'ซ่อมบำรุงประตูกั้นรถ',type:'maintenance',costCategory:'ส่วนกลาง',amount:12000,date:`${y}-03-18`,detail:'เปลี่ยนมอเตอร์ประตูและ sensor',note:'',status:'paid',slips:[]},
   ];
   save();
 }
