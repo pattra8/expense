@@ -1285,6 +1285,7 @@ function toggleDashboardFacilityFilter(key) {
   activeDashboardFacility = activeDashboardFacility === key ? null : key;
   renderDashboardFacilities();
   renderMonthTxn();
+  if (activeDashboardFacility) scrollToFirstTxn('recentList');
 }
 
 function clearDashboardFacilityFilter() {
@@ -1299,12 +1300,23 @@ function toggleExpensesFacilityFilter(key) {
   sel.value = activeExpensesFacility || '';
   if (activeExpensesFacility) document.getElementById('filterMonth').value = '';
   renderExpenses();
+  if (activeExpensesFacility) scrollToFirstTxn('expenseList');
 }
 
 function clearExpensesFacilityFilter() {
   activeExpensesFacility = null;
   document.getElementById('filterCostCategory').value = '';
   renderExpenses();
+}
+
+function scrollToFirstTxn(listId) {
+  requestAnimationFrame(() => {
+    const firstCard = document.querySelector(`#${listId} .expense-card`);
+    (firstCard || document.getElementById(listId))?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  });
 }
 
 function renderExpenses() {
