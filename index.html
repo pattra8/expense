@@ -442,40 +442,40 @@
   /* ── FACILITIES DASHBOARD ── */
   .facilities-card {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--r-xl); padding: 20px 24px; margin-bottom: 20px;
+    border-radius: var(--r-xl); padding: 14px 18px; margin-bottom: 20px;
   }
   .facilities-head {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
   }
-  .facilities-title { font-size: 15px; font-weight: 700; color: var(--text-hi); }
-  .facilities-sub   { font-size: 12px; color: var(--text-lo); margin-top: 2px; }
-  .facilities-list  { display: flex; flex-direction: column; gap: 10px; }
+  .facilities-title { font-size: 14px; font-weight: 700; color: var(--text-hi); }
+  .facilities-sub   { font-size: 11px; color: var(--text-lo); margin-top: 1px; }
+  .facilities-list  { display: flex; flex-direction: column; gap: 6px; }
   .facility-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px; border-radius: var(--r-md);
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px; border-radius: var(--r-sm);
     border: 1.5px solid transparent; cursor: pointer;
     transition: background .15s, border-color .15s;
     background: var(--bg);
   }
   .facility-row:hover { background: var(--accent-bg); border-color: var(--border); }
   .facility-row.active { background: var(--accent-bg); border-color: var(--accent); }
-  .facility-emoji { font-size: 20px; flex-shrink: 0; width: 28px; text-align: center; }
+  .facility-emoji { font-size: 16px; flex-shrink: 0; width: 24px; height: 24px; display:flex; align-items:center; justify-content:center; }
   .facility-info  { flex: 1; min-width: 0; }
-  .facility-name  { font-size: 13px; font-weight: 700; color: var(--text-hi); margin-bottom: 5px; display: flex; align-items: center; justify-content: space-between; }
-  .facility-amt   { font-size: 13px; font-weight: 700; color: var(--text-hi); white-space: nowrap; }
+  .facility-name  { font-size: 12.5px; font-weight: 700; color: var(--text-hi); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
+  .facility-amt   { font-size: 12.5px; font-weight: 700; color: var(--text-hi); white-space: nowrap; }
   .facility-bar-track {
-    height: 7px; background: var(--border); border-radius: 99px; overflow: hidden;
+    height: 5px; background: var(--border); border-radius: 99px; overflow: hidden;
   }
   .facility-bar-fill {
     height: 100%; border-radius: 99px;
     transition: width .4s cubic-bezier(.4,0,.2,1);
   }
-  .facility-count { font-size: 11px; color: var(--text-lo); margin-top: 3px; }
+  .facility-count { font-size: 10.5px; color: var(--text-lo); margin-top: 2px; }
   .facility-row.active .facility-name { color: var(--accent-dk); }
   .facility-row.active .facility-amt  { color: var(--accent-dk); }
   .facility-row.active .facility-bar-track { background: rgba(79,110,247,0.15); }
-  .facilities-empty { font-size: 13px; color: var(--text-lo); text-align: center; padding: 16px 0; }
+  .facilities-empty { font-size: 13px; color: var(--text-lo); text-align: center; padding: 12px 0; }
 
   /* ── FAB ── */
   .fab {
@@ -594,8 +594,8 @@
       </div>
     </div>
     <div id="expensesHeroCard"></div>
-    <div id="expensesFacilitiesCard"></div>
     <div id="annualBreakdownCard"></div>
+    <div id="expensesFacilitiesCard"></div>
     <div class="filters">
       <select class="filter-select" id="filterMonth" onchange="renderExpenses()"></select>
       <select class="filter-select" id="filterType" onchange="renderExpenses()">
@@ -851,7 +851,7 @@ function populateMonthFilter() {
   const now = new Date(), opts = ['<option value="">ทุกเดือน</option>'];
   const year = now.getFullYear();
   for (let m=0; m<12; m+=1)
-    opts.push(`<option value="${year}-${String(m+1).padStart(2,'0')}">${MONTH_EN[m]} ${year}</option>`);
+    opts.push(`<option value="${year}-${String(m+1).padStart(2,'0')}">${MONTH_TH[m]} ${year}</option>`);
   document.getElementById('filterMonth').innerHTML = opts.join('');
 }
 function populateDashMonthFilter() {
@@ -860,7 +860,7 @@ function populateDashMonthFilter() {
   const year = now.getFullYear();
   for (let m=0; m<12; m+=1) {
     const val = `${year}-${String(m+1).padStart(2,'0')}`;
-    opts.push(`<option value="${val}"${val===cur?' selected':''}>${MONTH_EN[m]} ${year}</option>`);
+    opts.push(`<option value="${val}"${val===cur?' selected':''}>${MONTH_TH[m]} ${year}</option>`);
   }
   document.getElementById('dashMonthFilter').innerHTML = opts.join('');
 }
@@ -1173,7 +1173,7 @@ function renderMonthHero() {
     <div class="month-hero">
       <div>
         <div class="hero-label">รายจ่ายประจำเดือน</div>
-        <div class="hero-month">${MONTH_EN[mi]} ${yr}</div>
+        <div class="hero-month">${MONTH_TH[mi]} ${yr}</div>
         <div class="hero-amount"><span>฿</span>${Number(tot).toLocaleString('en-US')}</div>
       </div>
       <div class="hero-right">
@@ -1248,7 +1248,7 @@ function renderDashboardFacilities() {
   const month = document.getElementById('dashMonthFilter').value;
   const filtered = expenses.filter(e => e?.date && new Date(e.date).toISOString().slice(0,7) === month);
   const grandTotal = facilitiesTotal(filtered);
-  const monthLabel = month ? new Date(month + '-01').toLocaleDateString('th-TH', { month: 'long', year: 'numeric' }) : 'ทั้งหมด';
+  const monthLabel = month ? `${MONTH_TH[parseInt(month.slice(5,7))-1]} ${month.slice(0,4)}` : 'ทั้งหมด';
   el.innerHTML = `
     <div class="facilities-card">
       <div class="facilities-head">
