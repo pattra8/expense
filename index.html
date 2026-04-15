@@ -264,9 +264,15 @@
   .badge-maintenance { background:var(--rose-bg);   color:var(--rose);  }
   .badge-general     { background:var(--violet-bg); color:var(--violet); }
   .expense-info   { flex:1; min-width:0; }
-  .expense-title  { font-size:14px; font-weight:600; color:var(--text-hi); margin-bottom:3px; }
+  .expense-title-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:3px; }
+  .expense-title  { font-size:14px; font-weight:600; color:var(--text-hi); line-height:1.3; }
   .expense-meta   { font-size:12px; color:var(--text-lo); display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  .expense-category-badge { background:var(--accent-bg); color:var(--accent-dk); padding:2px 7px; border-radius:99px; font-weight:600; }
+  .expense-category-badge {
+    display:inline-flex; align-items:center; gap:3px;
+    background:var(--accent-bg); color:var(--accent-dk);
+    padding:2px 8px; border-radius:99px; font-size:11.5px; font-weight:600;
+    border:1px solid rgba(79,110,247,0.18); flex-shrink:0;
+  }
   .expense-amount { font-size:16px; font-weight:700; color:var(--text-hi); white-space:nowrap; text-align:right; flex-shrink:0; }
   .expense-slips  { display:flex; gap:5px; margin-top:9px; flex-wrap:wrap; }
   .slip-thumb     { width:48px; height:48px; border-radius:7px; object-fit:cover; border:1.5px solid var(--border); cursor:pointer; }
@@ -332,31 +338,32 @@
   /* ── CATEGORY PICKER ── */
   .category-select { position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; }
   .category-picker {
-    display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
-    gap:6px;
+    display:flex; flex-wrap:wrap; gap:6px;
   }
   .category-btn {
-    min-height:38px; padding:6px 8px; border:1.5px solid var(--border);
-    border-radius:var(--r-sm); background:var(--surface);
-    color:var(--text-mid); font-family:inherit; font-size:12px; font-weight:600;
-    cursor:pointer; display:flex; align-items:center; gap:6px; text-align:left;
-    transition:background .18s, border-color .18s, color .18s, transform .18s, box-shadow .18s;
+    height:32px; padding:0 10px; border:1.5px solid var(--border);
+    border-radius:99px; background:var(--surface);
+    color:var(--text-mid); font-family:inherit; font-size:12.5px; font-weight:500;
+    cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+    transition:background .15s, border-color .15s, color .15s, box-shadow .15s;
+    flex-shrink:0;
   }
-  .category-btn:hover { border-color:var(--border2); transform:translateY(-1px); }
+  .category-btn:hover { border-color:var(--border2); background:var(--surface2); }
   .category-btn.is-active {
     background:var(--accent-bg); border-color:var(--accent);
-    color:var(--accent-dk); box-shadow:0 5px 12px rgba(79,110,247,.11);
+    color:var(--accent-dk); font-weight:600; box-shadow:0 2px 8px rgba(79,110,247,.13);
   }
   .category-icon {
-    width:22px; height:22px; border-radius:6px; flex:0 0 22px;
-    display:flex; align-items:center; justify-content:center;
-    background:var(--surface2); font-size:13px;
+    font-size:14px; line-height:1;
   }
-  .category-btn.is-active .category-icon { background:var(--accent); color:#fff; }
+  .category-btn.is-active .category-icon { }
   .title-hero { margin-top:2px; }
+  .title-hero .form-label {
+    font-size:14px; font-weight:700; color:var(--text-hi);
+    text-transform:none; letter-spacing:0;
+  }
   .title-hero .form-input {
-    min-height:52px; font-size:18px; font-weight:700; padding:12px 14px;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    min-height:52px; font-size:17px; font-weight:600; padding:12px 14px;
   }
 
   /* ── UPLOAD ── */
@@ -457,8 +464,7 @@
 
   @media(max-width:580px) {
     .form-row { grid-template-columns:1fr; }
-    .category-picker { grid-template-columns:1fr 1fr; }
-    .category-btn { min-height:36px; }
+    .category-btn { height:30px; font-size:12px; }
     .stats-grid { grid-template-columns:1fr 1fr; }
     .container { padding:20px 14px 60px; }
     header { padding:0 16px; }
@@ -631,7 +637,7 @@
     </div>
     <div class="form-group title-hero">
       <label class="form-label">ชื่อรายจ่าย *</label>
-      <input class="form-input" id="fTitle" placeholder="เช่น ค่ารปภ., ค่าไฟส่วนกลาง, ซ่อมระบบสระว่ายน้ำ">
+      <input class="form-input" id="fTitle" placeholder="">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -1319,8 +1325,11 @@ function expenseCardHtml(e,showAdmin) {
   return `<div class="expense-card" onclick="openDetail('${e.id}')">
     <span class="expense-type-badge ${typeBadgeClass(e.type)}">${typeLabel(e.type)}</span>
     <div class="expense-info">
-      <div class="expense-title">${e.title}</div>
-      <div class="expense-meta"><span>📅 ${fmtDate(e.date)}</span><span class="expense-category-badge">${costCategoryLabel(e)}</span><span>${sd}</span>${e.note?`<span>· ${e.note}</span>`:''}</div>
+      <div class="expense-title-row">
+        <span class="expense-title">${e.title}</span>
+        <span class="expense-category-badge">${costCategoryLabel(e)}</span>
+      </div>
+      <div class="expense-meta"><span>📅 ${fmtDate(e.date)}</span><span>${sd}</span>${e.note?`<span>· ${e.note}</span>`:''}</div>
       ${slipsHtml}${adminHtml}
     </div>
     <div class="expense-amount">${fmt(e.amount)}</div>
