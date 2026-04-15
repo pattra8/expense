@@ -332,27 +332,32 @@
   /* ── CATEGORY PICKER ── */
   .category-select { position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; }
   .category-picker {
-    display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:8px;
+    display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:6px;
   }
   .category-btn {
-    min-height:48px; padding:9px 10px; border:1.5px solid var(--border);
+    min-height:38px; padding:6px 8px; border:1.5px solid var(--border);
     border-radius:var(--r-sm); background:var(--surface);
-    color:var(--text-mid); font-family:inherit; font-size:13px; font-weight:600;
-    cursor:pointer; display:flex; align-items:center; gap:8px; text-align:left;
+    color:var(--text-mid); font-family:inherit; font-size:12px; font-weight:600;
+    cursor:pointer; display:flex; align-items:center; gap:6px; text-align:left;
     transition:background .18s, border-color .18s, color .18s, transform .18s, box-shadow .18s;
   }
   .category-btn:hover { border-color:var(--border2); transform:translateY(-1px); }
   .category-btn.is-active {
     background:var(--accent-bg); border-color:var(--accent);
-    color:var(--accent-dk); box-shadow:0 8px 18px rgba(79,110,247,.12);
+    color:var(--accent-dk); box-shadow:0 5px 12px rgba(79,110,247,.11);
   }
   .category-icon {
-    width:26px; height:26px; border-radius:7px; flex:0 0 26px;
+    width:22px; height:22px; border-radius:6px; flex:0 0 22px;
     display:flex; align-items:center; justify-content:center;
-    background:var(--surface2); font-size:15px;
+    background:var(--surface2); font-size:13px;
   }
   .category-btn.is-active .category-icon { background:var(--accent); color:#fff; }
+  .title-hero { margin-top:2px; }
+  .title-hero .form-input {
+    min-height:52px; font-size:18px; font-weight:700; padding:12px 14px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
 
   /* ── UPLOAD ── */
   .upload-zone {
@@ -453,6 +458,7 @@
   @media(max-width:580px) {
     .form-row { grid-template-columns:1fr; }
     .category-picker { grid-template-columns:1fr 1fr; }
+    .category-btn { min-height:36px; }
     .stats-grid { grid-template-columns:1fr 1fr; }
     .container { padding:20px 14px 60px; }
     header { padding:0 16px; }
@@ -623,28 +629,26 @@
         <button type="button" class="category-btn" data-cost-category="อื่น ๆ" onclick="setCostCategory('อื่น ๆ')" aria-checked="false" role="radio"><span class="category-icon">✨</span><span>อื่น ๆ</span></button>
       </div>
     </div>
+    <div class="form-group title-hero">
+      <label class="form-label">ชื่อรายจ่าย *</label>
+      <input class="form-input" id="fTitle" placeholder="เช่น ค่ารปภ., ค่าไฟส่วนกลาง, ซ่อมระบบสระว่ายน้ำ">
+    </div>
     <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">ชื่อรายจ่าย *</label>
-        <input class="form-input" id="fTitle" placeholder="เช่น ค่ารปภ.">
-      </div>
       <div class="form-group">
         <label class="form-label">จำนวนเงิน (บาท) *</label>
         <input class="form-input" type="number" id="fAmount" placeholder="0">
       </div>
-    </div>
-    <div class="form-row">
       <div class="form-group">
         <label class="form-label">วันที่จ่าย *</label>
         <input class="form-input" type="date" id="fDate">
       </div>
-      <div class="form-group">
-        <label class="form-label">สถานะ</label>
-        <select class="form-select" id="fStatus">
-          <option value="paid">จ่ายแล้ว ✅</option>
-          <option value="pending">รอดำเนินการ ⏳</option>
-        </select>
-      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">สถานะ</label>
+      <select class="form-select" id="fStatus">
+        <option value="paid">จ่ายแล้ว ✅</option>
+        <option value="pending">รอดำเนินการ ⏳</option>
+      </select>
     </div>
     <div class="form-group">
       <label class="form-label">รายละเอียด</label>
@@ -1723,6 +1727,7 @@ Object.assign(window, {
   renderMonthTxn,
   saveCapMax,
   saveExpense,
+  setCostCategory,
   setType,
   showPage,
   toggleAdminPrompt,
