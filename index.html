@@ -329,6 +329,31 @@
   .type-btn.active-maintenance { background:var(--rose-bg);  border-color:var(--rose);  color:var(--rose);  font-weight:600; }
   .type-btn.active-general     { background:var(--violet-bg); border-color:var(--violet); color:var(--violet); font-weight:600; }
 
+  /* ── CATEGORY PICKER ── */
+  .category-select { position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; }
+  .category-picker {
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:8px;
+  }
+  .category-btn {
+    min-height:48px; padding:9px 10px; border:1.5px solid var(--border);
+    border-radius:var(--r-sm); background:var(--surface);
+    color:var(--text-mid); font-family:inherit; font-size:13px; font-weight:600;
+    cursor:pointer; display:flex; align-items:center; gap:8px; text-align:left;
+    transition:background .18s, border-color .18s, color .18s, transform .18s, box-shadow .18s;
+  }
+  .category-btn:hover { border-color:var(--border2); transform:translateY(-1px); }
+  .category-btn.is-active {
+    background:var(--accent-bg); border-color:var(--accent);
+    color:var(--accent-dk); box-shadow:0 8px 18px rgba(79,110,247,.12);
+  }
+  .category-icon {
+    width:26px; height:26px; border-radius:7px; flex:0 0 26px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--surface2); font-size:15px;
+  }
+  .category-btn.is-active .category-icon { background:var(--accent); color:#fff; }
+
   /* ── UPLOAD ── */
   .upload-zone {
     border:2px dashed var(--border); border-radius:var(--r-md);
@@ -427,6 +452,7 @@
 
   @media(max-width:580px) {
     .form-row { grid-template-columns:1fr; }
+    .category-picker { grid-template-columns:1fr 1fr; }
     .stats-grid { grid-template-columns:1fr 1fr; }
     .container { padding:20px 14px 60px; }
     header { padding:0 16px; }
@@ -568,7 +594,7 @@
     </div>
     <div class="form-group">
       <label class="form-label">หมวดค่าใช้จ่าย</label>
-      <select class="form-select" id="fCostCategory">
+      <select class="form-select category-select" id="fCostCategory" tabindex="-1" aria-hidden="true">
         <option value="ส่วนกลาง">ส่วนกลาง</option>
         <option value="สโมสร">สโมสร</option>
         <option value="ฟิตเนส">ฟิตเนส</option>
@@ -582,6 +608,20 @@
         <option value="สำนักงานนิติ">สำนักงานนิติ</option>
         <option value="อื่น ๆ">อื่น ๆ</option>
       </select>
+      <div class="category-picker" role="radiogroup" aria-label="หมวดค่าใช้จ่าย">
+        <button type="button" class="category-btn" data-cost-category="ส่วนกลาง" onclick="setCostCategory('ส่วนกลาง')" aria-checked="false" role="radio"><span class="category-icon">🏘️</span><span>ส่วนกลาง</span></button>
+        <button type="button" class="category-btn" data-cost-category="สโมสร" onclick="setCostCategory('สโมสร')" aria-checked="false" role="radio"><span class="category-icon">🏛️</span><span>สโมสร</span></button>
+        <button type="button" class="category-btn" data-cost-category="ฟิตเนส" onclick="setCostCategory('ฟิตเนส')" aria-checked="false" role="radio"><span class="category-icon">🏋️</span><span>ฟิตเนส</span></button>
+        <button type="button" class="category-btn" data-cost-category="สระว่ายน้ำ" onclick="setCostCategory('สระว่ายน้ำ')" aria-checked="false" role="radio"><span class="category-icon">🏊</span><span>สระว่ายน้ำ</span></button>
+        <button type="button" class="category-btn" data-cost-category="แม่บ้าน / ทำความสะอาด" onclick="setCostCategory('แม่บ้าน / ทำความสะอาด')" aria-checked="false" role="radio"><span class="category-icon">🧹</span><span>แม่บ้าน</span></button>
+        <button type="button" class="category-btn" data-cost-category="รปภ." onclick="setCostCategory('รปภ.')" aria-checked="false" role="radio"><span class="category-icon">🛡️</span><span>รปภ.</span></button>
+        <button type="button" class="category-btn" data-cost-category="กล้องวงจรปิด" onclick="setCostCategory('กล้องวงจรปิด')" aria-checked="false" role="radio"><span class="category-icon">🎥</span><span>กล้องวงจรปิด</span></button>
+        <button type="button" class="category-btn" data-cost-category="สวน / ภูมิทัศน์" onclick="setCostCategory('สวน / ภูมิทัศน์')" aria-checked="false" role="radio"><span class="category-icon">🌿</span><span>สวน</span></button>
+        <button type="button" class="category-btn" data-cost-category="ไฟฟ้าส่วนกลาง" onclick="setCostCategory('ไฟฟ้าส่วนกลาง')" aria-checked="false" role="radio"><span class="category-icon">⚡</span><span>ไฟฟ้า</span></button>
+        <button type="button" class="category-btn" data-cost-category="ประปา" onclick="setCostCategory('ประปา')" aria-checked="false" role="radio"><span class="category-icon">💧</span><span>ประปา</span></button>
+        <button type="button" class="category-btn" data-cost-category="สำนักงานนิติ" onclick="setCostCategory('สำนักงานนิติ')" aria-checked="false" role="radio"><span class="category-icon">🗂️</span><span>สำนักงานนิติ</span></button>
+        <button type="button" class="category-btn" data-cost-category="อื่น ๆ" onclick="setCostCategory('อื่น ๆ')" aria-checked="false" role="radio"><span class="category-icon">✨</span><span>อื่น ๆ</span></button>
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -1289,7 +1329,7 @@ function openAddModal() {
   document.getElementById('modalTitle').textContent='เพิ่มรายจ่ายใหม่';
   ['fTitle','fDetail','fNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fAmount').value=''; document.getElementById('fStatus').value='paid';
-  document.getElementById('fCostCategory').value='ส่วนกลาง';
+  setCostCategory('ส่วนกลาง');
   document.getElementById('uploadPreview').innerHTML='';
   setExpenseSaveState(false);
   document.getElementById('fDate').value=new Date().toISOString().split('T')[0];
@@ -1303,7 +1343,7 @@ function openEditModal(id) {
   document.getElementById('fTitle').value=e.title||''; document.getElementById('fAmount').value=e.amount||'';
   document.getElementById('fDate').value=e.date||''; document.getElementById('fDetail').value=e.detail||'';
   document.getElementById('fNote').value=e.note||''; document.getElementById('fStatus').value=e.status||'paid';
-  document.getElementById('fCostCategory').value=costCategoryLabel(e);
+  setCostCategory(costCategoryLabel(e));
   setExpenseSaveState(false);
   setType(e.type||'recurring'); renderPreview(); document.getElementById('expenseModal').classList.add('open');
 }
@@ -1311,6 +1351,16 @@ function setType(t) {
   currentType=t;
   ['recurring','investment','maintenance','general'].forEach(tp=>{
     document.getElementById('typeBtn'+tp.charAt(0).toUpperCase()+tp.slice(1)).className='type-btn'+(tp===t?' active-'+tp:'');
+  });
+}
+function setCostCategory(category) {
+  const select = document.getElementById('fCostCategory');
+  if (!select) return;
+  select.value = category;
+  document.querySelectorAll('[data-cost-category]').forEach(btn => {
+    const active = btn.dataset.costCategory === category;
+    btn.classList.toggle('is-active', active);
+    btn.setAttribute('aria-checked', active ? 'true' : 'false');
   });
 }
 function makeExpenseId() {
