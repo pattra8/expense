@@ -177,9 +177,16 @@
   .annual-legend-pct { font-size:13px; font-weight:600; color:var(--text-mid); }
   .annual-legend-amt { font-size:13px; font-weight:700; color:var(--text-hi); }
   @media(max-width:520px) {
-    .month-hero { flex-direction:column; align-items:flex-start; }
-    .hero-right { text-align:left; }
+    .month-hero { align-items:flex-start; gap:14px; padding:24px 26px; }
+    .hero-right {
+      align-self:flex-start; text-align:left;
+      display:inline-flex; align-items:baseline; gap:5px;
+      background:rgba(255,255,255,.14); border-radius:99px;
+      padding:6px 10px;
+    }
     .hero-amount { font-size:30px; }
+    .hero-count { font-size:22px; font-weight:700; }
+    .hero-count-lbl { font-size:11px; margin-top:0; color:rgba(255,255,255,.68); }
   }
   @media(max-width:900px) {
     .annual-chart-layout { grid-template-columns:1fr; }
@@ -504,6 +511,13 @@
     .form-row { grid-template-columns:1fr; }
     .category-btn { height:30px; font-size:12px; }
     .stats-grid { grid-template-columns:1fr 1fr; }
+    .cap-card { padding:16px 18px; margin-bottom:18px; }
+    .cap-header { margin-bottom:10px; }
+    .cap-title { font-size:14px; }
+    .cap-pct { font-size:15px; font-weight:700; }
+    .cap-bar-bg { height:9px; }
+    .cap-labels { gap:8px; margin-top:10px; font-size:11px; font-weight:500; }
+    .cap-labels span { line-height:1.25; }
     .container { padding:20px 14px 60px; }
     header { padding:0 16px; }
     .fab { bottom:20px; right:20px; }
