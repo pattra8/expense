@@ -316,7 +316,15 @@
     from { opacity:0; transform:scale(.96) translateY(8px); }
     to   { opacity:1; transform:scale(1) translateY(0); }
   }
+  .modal-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:22px; }
   .modal-title { font-size:18px; font-weight:700; color:var(--text-hi); margin-bottom:22px; }
+  .modal-head .modal-title { margin-bottom:0; }
+  .modal-close {
+    width:34px; height:34px; border:none; border-radius:var(--r-sm);
+    background:var(--surface2); color:var(--text-mid);
+    font-size:18px; font-weight:700; cursor:pointer; flex-shrink:0;
+  }
+  .modal-close:hover { background:var(--border); color:var(--text-hi); }
   .form-group  { margin-bottom:14px; }
   .form-label  { display:block; font-size:11px; font-weight:600; color:var(--text-mid); margin-bottom:5px; text-transform:uppercase; letter-spacing:.4px; }
   .form-input,.form-textarea,.form-select {
@@ -648,7 +656,10 @@
 <!-- ADD/EDIT MODAL -->
 <div class="modal-overlay" id="expenseModal">
   <div class="modal">
-    <div class="modal-title" id="modalTitle">เพิ่มรายจ่ายใหม่</div>
+    <div class="modal-head">
+      <div class="modal-title" id="modalTitle">เพิ่มรายจ่ายใหม่</div>
+      <button class="modal-close" type="button" onclick="closeModal('expenseModal')" aria-label="ปิด">×</button>
+    </div>
     <div class="form-group">
       <label class="form-label">ประเภทรายจ่าย</label>
       <div class="type-toggle">
@@ -829,6 +840,7 @@ let isAdmin = false;
 let expenses = JSON.parse(localStorage.getItem(EXPENSES_STORAGE_KEY) || '[]');
 let editingId = null, currentSlips = [], lightboxSlips = [], lightboxIdx = 0, currentType = 'recurring';
 let isSavingExpense = false;
+let expenseFormSnapshot = null;
 
 function init() {
   restoreAdminSession();
@@ -1552,6 +1564,7 @@ function openAddModal() {
   setExpenseSaveState(false);
   document.getElementById('fDate').value=new Date().toISOString().split('T')[0];
   setType('recurring'); document.getElementById('expenseModal').classList.add('open');
+  rememberExpenseFormSnapshot();
 }
 function openEditModal(id) {
   if (isSavingExpense) return;
@@ -1564,6 +1577,36 @@ function openEditModal(id) {
   setCostCategory(costCategoryValue(e));
   setExpenseSaveState(false);
   setType(e.type||'recurring'); renderPreview(); document.getElementById('expenseModal').classList.add('open');
+  rememberExpenseFormSnapshot();
+}
+function getExpenseFormState() {
+  const slipSig = currentSlips.map(item => {
+    const att = normalizeAttachment(item);
+    if (!att) return '';
+    return [att.url || '', att.previewUrl || '', att.name || '', att.size || 0, att.kind || ''].join('|');
+  });
+  return {
+    editingId: editingId || '',
+    type: currentType,
+    costCategory: document.getElementById('fCostCategory').value,
+    title: document.getElementById('fTitle').value,
+    amount: document.getElementById('fAmount').value,
+    date: document.getElementById('fDate').value,
+    status: document.getElementById('fStatus').value,
+    detail: document.getElementById('fDetail').value,
+    note: document.getElementById('fNote').value,
+    slips: slipSig,
+  };
+}
+function rememberExpenseFormSnapshot() {
+  expenseFormSnapshot = JSON.stringify(getExpenseFormState());
+}
+function isExpenseFormDirty() {
+  if (!expenseFormSnapshot) return false;
+  return JSON.stringify(getExpenseFormState()) !== expenseFormSnapshot;
+}
+function confirmDiscardExpenseForm() {
+  return confirm('มีข้อมูลที่ยังไม่ได้บันทึก ต้องการยกเลิกและทิ้งข้อมูลนี้ใช่ไหม?');
 }
 function setType(t) {
   currentType=t;
@@ -1867,7 +1910,9 @@ function openCurrentLightboxImage(){
 }
 function closeModal(id, force = false){
   if (!force && id === 'expenseModal' && isSavingExpense) return;
+  if (!force && id === 'expenseModal' && isExpenseFormDirty() && !confirmDiscardExpenseForm()) return;
   document.getElementById(id).classList.remove('open');
+  if (id === 'expenseModal') expenseFormSnapshot = null;
 }
 document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)closeModal(m.id);});});
 
