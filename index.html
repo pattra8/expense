@@ -1310,13 +1310,16 @@ function clearExpensesFacilityFilter() {
 }
 
 function scrollToFirstTxn(listId) {
-  requestAnimationFrame(() => {
+  requestAnimationFrame(() => setTimeout(() => {
     const firstCard = document.querySelector(`#${listId} .expense-card`);
-    (firstCard || document.getElementById(listId))?.scrollIntoView({
+    const target = firstCard || document.getElementById(listId);
+    if (!target) return;
+    const top = target.getBoundingClientRect().top + window.scrollY - 96;
+    window.scrollTo({
+      top: Math.max(top, 0),
       behavior: 'smooth',
-      block: 'start',
     });
-  });
+  }, 60));
 }
 
 function renderExpenses() {
