@@ -265,7 +265,7 @@
   .badge-general     { background:var(--violet-bg); color:var(--violet); }
   .expense-info   { flex:1; min-width:0; }
   .expense-title-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:3px; }
-  .expense-title  { font-size:14px; font-weight:600; color:var(--text-hi); line-height:1.3; }
+  .expense-title  { font-size:15.5px; font-weight:700; color:var(--text-hi); line-height:1.3; }
   .expense-meta   { font-size:12px; color:var(--text-lo); display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .expense-category-badge {
     display:inline-flex; align-items:center; gap:3px;
@@ -922,8 +922,27 @@ function typeBadgeClass(t) {
     : t==='maintenance' ? 'badge-maintenance'
     : 'badge-general';
 }
-function costCategoryLabel(e) {
+const COST_CATEGORY_EMOJI = {
+  'ส่วนกลาง': '🏘️',
+  'สโมสร': '🏛️',
+  'ฟิตเนส': '🏋️',
+  'สระว่ายน้ำ': '🏊',
+  'แม่บ้าน / ทำความสะอาด': '🧹',
+  'รปภ.': '🛡️',
+  'กล้องวงจรปิด': '🎥',
+  'สวน / ภูมิทัศน์': '🌿',
+  'ไฟฟ้าส่วนกลาง': '⚡',
+  'ประปา': '💧',
+  'สำนักงานนิติ': '🗂️',
+  'อื่น ๆ': '✨',
+};
+function costCategoryValue(e) {
   return e?.costCategory || 'อื่น ๆ';
+}
+function costCategoryLabel(e) {
+  const cat = costCategoryValue(e);
+  const emoji = COST_CATEGORY_EMOJI[cat] || '✨';
+  return `${emoji} ${cat}`;
 }
 function getExpenseDateMs(expense) {
   const value = expense?.date ? new Date(expense.date).getTime() : 0;
@@ -1140,7 +1159,7 @@ function renderExpenses() {
   const list=[...expenses].filter(e=>{
     if(month&&new Date(e.date).toISOString().slice(0,7)!==month)return false;
     if(type&&e.type!==type)return false;
-    if(costCategory&&costCategoryLabel(e)!==costCategory)return false;
+    if(costCategory&&costCategoryValue(e)!==costCategory)return false;
     if(status&&e.status!==status)return false;
     if(q&&!e.title.toLowerCase().includes(q)&&!costCategoryLabel(e).toLowerCase().includes(q)&&!(e.detail||'').toLowerCase().includes(q)&&!(e.note||'').toLowerCase().includes(q))return false;
     return true;
@@ -1355,7 +1374,7 @@ function openEditModal(id) {
   document.getElementById('fTitle').value=e.title||''; document.getElementById('fAmount').value=e.amount||'';
   document.getElementById('fDate').value=e.date||''; document.getElementById('fDetail').value=e.detail||'';
   document.getElementById('fNote').value=e.note||''; document.getElementById('fStatus').value=e.status||'paid';
-  setCostCategory(costCategoryLabel(e));
+  setCostCategory(costCategoryValue(e));
   setExpenseSaveState(false);
   setType(e.type||'recurring'); renderPreview(); document.getElementById('expenseModal').classList.add('open');
 }
@@ -1611,16 +1630,21 @@ function openDetail(id) {
   const e=expenses.find(x=>x.id===id); if(!e)return;
   const slipsHtml=e.slips&&e.slips.length?`<div class="detail-section"><div class="detail-label">ไฟล์แนบ</div>${attachmentsHtml(e.slips,true)}</div>`:'';
   document.getElementById('detailContent').innerHTML=`
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
-      <span class="expense-type-badge ${typeBadgeClass(e.type)}">${typeLabel(e.type)}</span>
-      <div style="font-size:18px;font-weight:700">${e.title}</div>
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:18px">
+      <span class="expense-type-badge ${typeBadgeClass(e.type)}" style="flex-shrink:0;margin-top:3px">${typeLabel(e.type)}</span>
+      <div>
+        <div style="font-size:19px;font-weight:700;color:var(--text-hi);line-height:1.3;margin-bottom:6px">${e.title}</div>
+        <span class="expense-category-badge">${costCategoryLabel(e)}</span>
+      </div>
     </div>
-    <div class="detail-section"><div class="detail-label">จำนวนเงิน</div><div class="detail-value" style="font-size:28px;font-weight:700">${fmt(e.amount)}</div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div style="background:var(--bg);border-radius:var(--r-md);padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-lo);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">จำนวนเงิน</div>
+      <div style="font-size:30px;font-weight:800;color:var(--text-hi);letter-spacing:-0.5px">${fmt(e.amount)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px">
       <div class="detail-section"><div class="detail-label">วันที่</div><div class="detail-value">${fmtDate(e.date)}</div></div>
       <div class="detail-section"><div class="detail-label">สถานะ</div><div class="detail-value">${e.status==='paid'?'✅ จ่ายแล้ว':'⏳ รอดำเนินการ'}</div></div>
     </div>
-    <div class="detail-section"><div class="detail-label">หมวดค่าใช้จ่าย</div><div class="detail-value">${costCategoryLabel(e)}</div></div>
     ${e.detail?`<div class="detail-section"><div class="detail-label">รายละเอียด</div><div class="detail-value">${e.detail}</div></div>`:''}
     ${e.note?`<div class="detail-section"><div class="detail-label">หมายเหตุ</div><div class="detail-value">${e.note}</div></div>`:''}
     ${slipsHtml}`;
