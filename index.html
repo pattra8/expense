@@ -283,9 +283,21 @@
     border:1px solid rgba(79,110,247,0.18); flex-shrink:0;
   }
   .expense-amount { font-size:16px; font-weight:700; color:var(--text-hi); white-space:nowrap; text-align:right; flex-shrink:0; }
-  .expense-slips  { display:flex; gap:5px; margin-top:9px; flex-wrap:wrap; }
+  .expense-slips  { display:flex; gap:5px; margin-top:9px; flex-wrap:wrap; align-items:flex-start; }
   .slip-thumb     { width:48px; height:48px; border-radius:7px; object-fit:cover; border:1.5px solid var(--border); cursor:pointer; }
   .slip-count     { width:48px; height:48px; border-radius:7px; background:var(--surface2); border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text-lo); font-weight:600; cursor:pointer; }
+  .file-thumb {
+    width:78px; height:48px; border-radius:7px; border:1.5px solid var(--border);
+    background:var(--surface2); color:var(--text-mid); cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:5px 6px; font-size:9.5px; line-height:1.15;
+    overflow:hidden; flex:0 0 auto;
+  }
+  .file-thumb strong { font-size:10.5px; color:var(--text-hi); line-height:1; }
+  .file-thumb span {
+    width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    margin-top:3px;
+  }
   .expense-actions { display:flex; gap:5px; margin-top:8px; }
 
   /* ── STATUS DOT ── */
@@ -396,13 +408,13 @@
   .upload-preview { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
   .preview-item { position:relative; width:68px; height:68px; }
   .preview-img  { width:100%; height:100%; border-radius:8px; object-fit:cover; border:1.5px solid var(--border); }
-  .preview-file,.file-thumb {
+  .preview-file {
     width:100%; height:100%; border-radius:8px; border:1.5px solid var(--border);
     background:var(--surface2); color:var(--text-mid);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:6px; font-size:10px; line-height:1.2;
   }
-  .preview-file strong,.file-thumb strong { font-size:11px; color:var(--text-hi); }
+  .preview-file strong { font-size:11px; color:var(--text-hi); }
   .preview-remove { position:absolute; top:-6px; right:-6px; width:18px; height:18px; border-radius:50%; background:var(--rose); color:#fff; border:none; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:700; }
   .save-progress {
     display:none; margin-top:14px; padding:14px 16px; border-radius:var(--r-md);
