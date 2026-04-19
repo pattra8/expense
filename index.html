@@ -215,8 +215,10 @@
     background:var(--surface); border:1px solid var(--border);
     border-radius:var(--r-lg); padding:20px 20px;
     transition:box-shadow .18s, transform .18s;
+    cursor:pointer;
   }
   .stat-card:hover { box-shadow:var(--shadow-md); transform:translateY(-1px); }
+  .stat-card.active { border-color:var(--accent); box-shadow:0 0 0 1px rgba(79,110,247,.08), var(--shadow-md); }
   .stat-icon { width:40px; height:40px; border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center; font-size:19px; margin-bottom:14px; }
   .stat-label { font-size:13px; color:var(--text-mid); font-weight:600; margin-bottom:6px; }
   .stat-value { font-size:28px; font-weight:700; color:var(--text-hi); line-height:1; }
@@ -1066,25 +1068,25 @@ function renderDashboard() {
     .reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   document.getElementById('statCards').innerHTML = `
-    <div class="stat-card">
+    <div class="stat-card${activeDashboardType === 'recurring' ? ' active' : ''}" onclick="toggleDashboardTypeFilter('recurring')">
       <div class="stat-icon" style="background:var(--ok-bg)">🔄</div>
       <div class="stat-label">ค่าใช้จ่ายประจำ</div>
       <div class="stat-value" style="color:var(--ok)">${fmt(rec)}</div>
       <div class="stat-sub">${monthly.filter(e=>e.type==='recurring').length} รายการ</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card${activeDashboardType === 'general' ? ' active' : ''}" onclick="toggleDashboardTypeFilter('general')">
       <div class="stat-icon" style="background:var(--violet-bg)">🟣</div>
       <div class="stat-label">ค่าใช้จ่ายทั่วไป</div>
       <div class="stat-value" style="color:var(--violet)">${fmt(gen)}</div>
       <div class="stat-sub">${monthly.filter(e=>e.type==='general').length} รายการ</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card${activeDashboardType === 'investment' ? ' active' : ''}" onclick="toggleDashboardTypeFilter('investment')">
       <div class="stat-icon" style="background:var(--amber-bg)">📈</div>
       <div class="stat-label">ค่าใช้จ่ายลงทุน</div>
       <div class="stat-value" style="color:var(--amber)">${fmt(inv)}</div>
       <div class="stat-sub">${monthly.filter(e=>e.type==='investment').length} รายการ</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card${activeDashboardType === 'maintenance' ? ' active' : ''}" onclick="toggleDashboardTypeFilter('maintenance')">
       <div class="stat-icon" style="background:var(--rose-bg)">🔧</div>
       <div class="stat-label">ค่าซ่อมบำรุง</div>
       <div class="stat-value" style="color:var(--rose)">${fmt(mnt)}</div>
@@ -1235,10 +1237,15 @@ function renderMonthTxn() {
   const me = expenses.filter(e=>{
                        const d=new Date(e.date);
                        return d.getFullYear()===yr&&d.getMonth()===mi
+                         && (!activeDashboardType || e.type===activeDashboardType)
                          && (!activeDashboardFacility || costCategoryValue(e)===activeDashboardFacility);
                      })
                      .sort(compareExpensesDesc);
-  document.getElementById('txnSectionTitle').textContent = `รายจ่ายเดือน ${MONTH_EN[mi]} ${yr}${activeDashboardFacility ? ' · ' + activeDashboardFacility : ''}`;
+  const filterLabels = [
+    activeDashboardType ? expenseTypeText(activeDashboardType) : '',
+    activeDashboardFacility || '',
+  ].filter(Boolean);
+  document.getElementById('txnSectionTitle').textContent = `รายจ่ายเดือน ${MONTH_EN[mi]} ${yr}${filterLabels.length ? ' · ' + filterLabels.join(' · ') : ''}`;
   document.getElementById('recentList').innerHTML = me.length
     ? me.map(e=>expenseCardHtml(e,false)).join('')
     : '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">ไม่มีรายการในเดือนนี้</div></div>';
@@ -1252,6 +1259,7 @@ const FACILITIES = [
 ];
 
 let activeDashboardFacility = null;
+let activeDashboardType = null;
 let activeExpensesFacility = null;
 let activeAnnualType = null;
 
@@ -1340,6 +1348,12 @@ function clearDashboardFacilityFilter() {
   activeDashboardFacility = null;
   renderDashboardFacilities();
   renderMonthTxn();
+}
+
+function toggleDashboardTypeFilter(type) {
+  activeDashboardType = activeDashboardType === type ? null : type;
+  renderDashboard();
+  if (activeDashboardType) scrollToFirstTxn('recentList');
 }
 
 function toggleExpensesFacilityFilter(key) {
@@ -2036,6 +2050,7 @@ Object.assign(window, {
   showPage,
   toggleAnnualTypeFilter,
   toggleDashboardFacilityFilter,
+  toggleDashboardTypeFilter,
   toggleExpensesFacilityFilter,
   clearAnnualTypeFilter,
   clearDashboardFacilityFilter,
