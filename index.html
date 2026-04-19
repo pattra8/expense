@@ -171,7 +171,10 @@
     display:grid; grid-template-columns:auto minmax(0, 1fr) auto auto;
     gap:12px; align-items:center; padding:12px 14px;
     border:1px solid var(--border); border-radius:var(--r-md); background:var(--bg);
+    cursor:pointer; transition:background .15s, border-color .15s, box-shadow .15s;
   }
+  .annual-legend-item:hover { background:var(--accent-bg); border-color:var(--border2); }
+  .annual-legend-item.active { background:var(--accent-bg); border-color:var(--accent); box-shadow:0 0 0 1px rgba(79,110,247,.08); }
   .annual-legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
   .annual-legend-name { font-size:13px; font-weight:600; color:var(--text-hi); }
   .annual-legend-pct { font-size:13px; font-weight:600; color:var(--text-mid); }
@@ -1142,7 +1145,8 @@ function renderAnnualBreakdown() {
     });
   const legend = items.map(item => {
     const pct = total > 0 ? Math.round((item.amount / total) * 100) : 0;
-    return `<div class="annual-legend-item">
+    const isActive = activeAnnualType === item.key;
+    return `<div class="annual-legend-item${isActive ? ' active' : ''}" onclick="toggleAnnualTypeFilter('${item.key}')" role="button" aria-pressed="${isActive ? 'true' : 'false'}">
       <div class="annual-legend-dot" style="background:${item.color}"></div>
       <div class="annual-legend-name">${item.label}</div>
       <div class="annual-legend-pct">${pct}%</div>
@@ -1153,7 +1157,10 @@ function renderAnnualBreakdown() {
   document.getElementById('annualBreakdownCard').innerHTML = `
     <div class="annual-chart-card">
       <div class="annual-chart-head">
-        <div class="annual-chart-title">สัดส่วนค่าใช้จ่ายรายปี</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div class="annual-chart-title">สัดส่วนค่าใช้จ่ายรายปี</div>
+            ${activeAnnualType ? `<button onclick="clearAnnualTypeFilter()" style="font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-bg);border:none;padding:4px 12px;border-radius:99px;cursor:pointer;">✕ ล้าง filter</button>` : ''}
+          </div>
         <div class="annual-chart-sub">แยกตามประเภทของปี ${year}</div>
       </div>
       <div class="annual-chart-layout">
@@ -1246,6 +1253,7 @@ const FACILITIES = [
 
 let activeDashboardFacility = null;
 let activeExpensesFacility = null;
+let activeAnnualType = null;
 
 function facilityRows(sourceItems, activeKey, clickFnName) {
   const data = FACILITIES.map(f => {
@@ -1349,6 +1357,20 @@ function clearExpensesFacilityFilter() {
   renderExpenses();
 }
 
+function toggleAnnualTypeFilter(type) {
+  activeAnnualType = activeAnnualType === type ? null : type;
+  document.getElementById('filterType').value = activeAnnualType || '';
+  if (activeAnnualType) document.getElementById('filterMonth').value = '';
+  renderExpenses();
+  if (activeAnnualType) scrollToFirstTxn('expenseList');
+}
+
+function clearAnnualTypeFilter() {
+  activeAnnualType = null;
+  document.getElementById('filterType').value = '';
+  renderExpenses();
+}
+
 function scrollToFirstTxn(listId) {
   requestAnimationFrame(() => setTimeout(() => {
     const firstCard = document.querySelector(`#${listId} .expense-card`);
@@ -1367,9 +1389,11 @@ function renderExpenses() {
         costCategory=document.getElementById('filterCostCategory').value,
         status=document.getElementById('filterStatus').value, q=document.getElementById('filterSearch').value.toLowerCase();
   activeExpensesFacility = FACILITIES.some(f => f.key === costCategory) ? costCategory : null;
+  activeAnnualType = type || null;
   const list=[...expenses].filter(e=>{
     if(month&&new Date(e.date).toISOString().slice(0,7)!==month)return false;
     if(activeExpensesFacility&&new Date(e.date).getFullYear()!==new Date().getFullYear())return false;
+    if(activeAnnualType&&new Date(e.date).getFullYear()!==new Date().getFullYear())return false;
     if(type&&e.type!==type)return false;
     if(costCategory&&costCategoryValue(e)!==costCategory)return false;
     if(status&&e.status!==status)return false;
@@ -2010,8 +2034,10 @@ Object.assign(window, {
   setCostCategory,
   setType,
   showPage,
+  toggleAnnualTypeFilter,
   toggleDashboardFacilityFilter,
   toggleExpensesFacilityFilter,
+  clearAnnualTypeFilter,
   clearDashboardFacilityFilter,
   clearExpensesFacilityFilter,
   toggleAdminPrompt,
