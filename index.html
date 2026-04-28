@@ -329,7 +329,7 @@
     background:var(--surface); border-radius:var(--r-xl);
     padding:28px; width:100%; max-width:540px;
     max-height:90vh; overflow-y:auto;
-    box-shadow:var(--shadow-lg); animation:modalIn .2s ease;
+    box-shadow:var(--shadow-lg); animation:modalIn .2s ease; position:relative;
   }
   @keyframes modalIn {
     from { opacity:0; transform:scale(.96) translateY(8px); }
@@ -339,11 +339,12 @@
   .modal-title { font-size:18px; font-weight:700; color:var(--text-hi); margin-bottom:22px; }
   .modal-head .modal-title { margin-bottom:0; }
   .modal-close {
-    width:34px; height:34px; border:none; border-radius:var(--r-sm);
+    width:40px; height:40px; border:none; border-radius:var(--r-sm);
     background:var(--surface2); color:var(--text-mid);
-    font-size:18px; font-weight:700; cursor:pointer; flex-shrink:0;
+    font-size:20px; font-weight:700; cursor:pointer; flex-shrink:0;
   }
   .modal-close:hover { background:var(--border); color:var(--text-hi); }
+  .modal-close-floating { position:absolute; top:18px; right:18px; z-index:1; }
   .form-group  { margin-bottom:14px; }
   .form-label  { display:block; font-size:11px; font-weight:600; color:var(--text-mid); margin-bottom:5px; text-transform:uppercase; letter-spacing:.4px; }
   .form-input,.form-textarea,.form-select {
@@ -778,6 +779,7 @@
 <!-- DETAIL MODAL -->
 <div class="modal-overlay" id="detailModal">
   <div class="modal">
+    <button class="modal-close modal-close-floating" type="button" onclick="closeModal('detailModal')" aria-label="ปิด">×</button>
     <div id="detailContent"></div>
     <div class="modal-actions" id="detailActions"></div>
   </div>
@@ -1931,8 +1933,8 @@ function openDetail(id) {
     ${e.note?`<div class="detail-section"><div class="detail-label">หมายเหตุ</div><div class="detail-value">${e.note}</div></div>`:''}
     ${slipsHtml}`;
   document.getElementById('detailActions').innerHTML=isAdmin
-    ?`<button class="btn btn-danger btn-sm" onclick="deleteExpense('${e.id}')">ลบ</button><button class="btn btn-ghost" onclick="closeModal('detailModal');openEditModal('${e.id}')">แก้ไข</button><button class="btn btn-primary" onclick="closeModal('detailModal')">ปิด</button>`
-    :`<button class="btn btn-primary" onclick="closeModal('detailModal')">ปิด</button>`;
+    ?`<button class="btn btn-danger btn-sm" onclick="deleteExpense('${e.id}')">ลบ</button><button class="btn btn-ghost" onclick="closeModal('detailModal');openEditModal('${e.id}')">แก้ไข</button>`
+    :'';
   document.getElementById('detailModal').classList.add('open');
 }
 
